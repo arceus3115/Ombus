@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <title>New intake | Ombus</title>
+  <link rel="stylesheet" href="./intake.css">
+  <script type="module" src="./intake.mjs"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to intake</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span>Ombus</div>
+      <p class="workspace-name">Intake workspace</p>
+      <p class="preview-label">Local prototype</p>
+    </div>
+  </header>
+
+  <main id="main" class="workspace" tabindex="-1">
+    <header class="page-title">
+      <h1>New intake</h1>
+      <p>Record a concern and prepare it for staff review.</p>
+    </header>
+    <noscript><p class="notice">Enable JavaScript to use the local intake prototype.</p></noscript>
+
+    <div class="workspace-grid" id="intake-workspace" hidden>
+      <form id="intake-form" class="intake-card" method="post" autocomplete="off" novalidate>
+        <div class="card-body">
+          <div id="error-summary" class="error-summary" role="alert"></div>
+
+          <section data-step="0" aria-labelledby="concern-heading">
+            <h2 id="concern-heading" tabindex="-1">About the concern</h2>
+            <p class="section-intro">Start with who is affected and what they need help with.</p>
+            <div id="concern-fields" class="field-stack"></div>
+            <div id="emergency-guidance" class="notice urgent" role="status"></div>
+          </section>
+
+          <section data-step="1" aria-labelledby="contact-heading" hidden>
+            <h2 id="contact-heading" tabindex="-1">Contact and receipt</h2>
+            <p class="section-intro">Record how staff can safely reach the person reporting the concern.</p>
+            <div id="contact-fields" class="field-stack"></div>
+            <details id="contact-more" class="more-info">
+              <summary>Have more info?</summary>
+              <div id="contact-extra-fields" class="field-stack"></div>
+            </details>
+          </section>
+
+          <section data-step="2" aria-labelledby="office-heading" hidden>
+            <h2 id="office-heading" tabindex="-1">Office details</h2>
+            <p class="section-intro">Choose an issue for a suggested route, or select an office directly.</p>
+            <div id="routing-hint"></div>
+            <div id="routing-suggestion" class="route-suggestion" hidden>
+              <p id="routing-suggestion-text" role="status"></p>
+              <button id="use-suggestion" class="button secondary" type="button">Use suggestion</button>
+            </div>
+            <div id="office-choice"></div>
+            <div id="office-details" class="office-details" hidden>
+              <h3 id="office-details-heading"></h3>
+              <div id="office-fields" class="field-stack"></div>
+              <p id="incident-guidance" class="notice" hidden>Use the <a href="https://mn.gov/omhdd/reporting-death-or-serious-injury/" target="_blank" rel="noopener noreferrer">official OMHDD reporting process (opens in a new tab)</a> to file a required death or serious injury report.</p>
+              <details id="office-more" class="more-info" hidden>
+                <summary>Have more info?</summary>
+                <div id="office-extra-fields" class="field-stack"></div>
+              </details>
+            </div>
+          </section>
+
+          <section data-step="3" aria-labelledby="review-heading" hidden>
+            <h2 id="review-heading" tabindex="-1">Review intake</h2>
+            <p class="section-intro">Check the details before downloading a JSON record.</p>
+            <div id="intake-review"></div>
+          </section>
+
+          <section id="intake-complete" aria-labelledby="complete-heading" hidden>
+            <div class="completion-mark" aria-hidden="true">✓</div>
+            <h2 id="complete-heading" tabindex="-1">Intake record prepared</h2>
+            <p class="section-intro">Your browser handles the JSON download. The record is for staff review.</p>
+            <p id="record-reference" class="record-reference"></p>
+          </section>
+        </div>
+
+        <footer class="card-footer" id="workflow-actions">
+          <button id="back" class="button secondary" type="button" hidden>Back</button>
+          <button id="continue" class="button primary" type="submit">Continue <span aria-hidden="true">→</span></button>
+        </footer>
+        <footer class="card-footer" id="complete-actions" hidden>
+          <button id="download-again" class="button secondary" type="button">Download again</button>
+          <button id="new-intake" class="button primary" type="button">Start another intake</button>
+        </footer>
+      </form>
+
+      <aside class="sidebar" aria-label="Intake progress and help">
+        <nav aria-labelledby="steps-heading">
+          <h2 id="steps-heading" class="sidebar-heading">Intake steps</h2>
+          <ol class="steps" id="steps">
+            <li aria-current="step"><span class="step-index" aria-hidden="true">1</span><span>Concern</span></li>
+            <li><span class="step-index" aria-hidden="true">2</span><span>Contact</span></li>
+            <li><span class="step-index" aria-hidden="true">3</span><span>Office details</span></li>
+            <li><span class="step-index" aria-hidden="true">4</span><span>Review</span></li>
+          </ol>
+        </nav>
+        <div class="sidebar-note">
+          <h2>Use sample information</h2>
+          <p>Drafts stay in this tab until you refresh or close it. Download a copy after review.</p>
+        </div>
+        <p class="safety-note">If someone is in immediate danger, <a href="tel:911">call 911</a>.</p>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>
