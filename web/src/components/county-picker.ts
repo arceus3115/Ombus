@@ -1,13 +1,14 @@
 import { node } from './dom.ts';
 import { searchCounties } from '../features/intake/counties.ts';
+import type { Option } from '../features/intake/model.ts';
 
-export function bindCountyPicker(input: HTMLInputElement, element: HTMLElement, onValue: (value: string) => void): void {
+export function bindCountyPicker(input: HTMLInputElement, element: HTMLElement, options: Option[], onValue: (value: string) => void): void {
   const popup = node('div', 'county-popup');
   const list = node('ul', 'county-list');
   const status = node('p', 'county-status');
   list.id = `${input.id}-matches`;
   list.setAttribute('role', 'listbox');
-  list.setAttribute('aria-label', 'Minnesota counties');
+  list.setAttribute('aria-label', 'County results');
   status.setAttribute('role', 'status');
   popup.hidden = true;
   popup.append(list, status);
@@ -36,13 +37,13 @@ export function bindCountyPicker(input: HTMLInputElement, element: HTMLElement, 
   }
 
   function show() {
-    matches = searchCounties(input.value);
+    matches = searchCounties(input.value, options);
     active = -1;
     input.removeAttribute('aria-activedescendant');
     list.replaceChildren(...matches.map((county, index) => {
       const item = node('li', '', county.label);
       item.id = `${list.id}-${county.value}`;
-      item.dataset.match = index;
+      item.dataset.match = String(index);
       item.setAttribute('role', 'option');
       item.setAttribute('aria-selected', String(input.dataset.selectedCounty === county.value));
       return item;
@@ -50,7 +51,7 @@ export function bindCountyPicker(input: HTMLInputElement, element: HTMLElement, 
     list.hidden = !matches.length;
     input.setAttribute('aria-expanded', String(Boolean(matches.length)));
     popup.hidden = false;
-    status.textContent = matches.length ? '' : 'No Minnesota counties match your search.';
+    status.textContent = matches.length ? '' : 'No counties match your search.';
   }
 
   input.addEventListener('input', () => {

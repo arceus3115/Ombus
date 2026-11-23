@@ -6,7 +6,7 @@ export function reviewEntries(fields: Field[], values: Answers): Entry[] {
   return visible.filter((field) => answers[field.key]).map((field) => {
     const value = answers[field.key] ?? '';
     const option = field.options?.find((item) => item.value === value);
-    return [field.label, field.type === 'datetime-local' ? `${value.replace('T', ' ')} Central time` : option?.label ?? value];
+    return [field.label, field.type === 'datetime-local' ? `${value.replace('T', ' ')} local time` : option?.label ?? value];
   });
 }
 

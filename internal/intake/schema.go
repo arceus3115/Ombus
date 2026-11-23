@@ -35,18 +35,38 @@ type Hint struct {
 	Office string `json:"office"`
 }
 
+type reviewRule struct {
+	Flag                     string              `json:"flag"`
+	State                    string              `json:"state"`
+	Office                   string              `json:"office"`
+	Concern                  map[string][]string `json:"concern"`
+	Details                  map[string][]string `json:"details"`
+	DifferentSuggestedOffice bool                `json:"differentSuggestedOffice"`
+}
+
 type Schema struct {
-	Version       int                `json:"version"`
-	ConcernFields []Field            `json:"concernFields"`
-	ContactFields []Field            `json:"contactFields"`
-	OfficeFields  map[string][]Field `json:"officeFields"`
-	RoutingHints  []Hint             `json:"routingHints"`
+	Version       int          `json:"version"`
+	ConcernFields []Field      `json:"concernFields"`
+	ContactFields []Field      `json:"contactFields"`
+	ReviewRules   []reviewRule `json:"reviewRules"`
+	states        map[string]stateConfig
 	handoffs      []rule
+}
+
+type stateConfig struct {
+	Code           string             `json:"code"`
+	Name           string             `json:"name"`
+	TimeZone       string             `json:"timeZone"`
+	CountySet      string             `json:"countySet"`
+	LocationFields []Field            `json:"locationFields"`
+	OfficeFields   map[string][]Field `json:"officeFields"`
+	RoutingHints   []Hint             `json:"routingHints"`
 }
 
 type Input struct {
 	ID              string  `json:"id"`
 	SchemaVersion   int     `json:"schemaVersion"`
+	StateCode       string  `json:"stateCode,omitempty"`
 	RequestedOffice *string `json:"requestedOffice"`
 	RoutingHint     string  `json:"routingHint,omitempty"`
 	Receipt         Values  `json:"receipt"`
@@ -57,12 +77,14 @@ type Input struct {
 
 type Record struct {
 	Input
-	CreatedAt   time.Time `json:"createdAt"`
-	Status      string    `json:"status"`
-	ReviewFlags []string  `json:"reviewFlags"`
+	CreatedAt      time.Time    `json:"createdAt"`
+	Status         string       `json:"status"`
+	ReviewFlags    []string     `json:"reviewFlags"`
+	OutputContract *ContractRef `json:"outputContract,omitempty"`
 }
 
 const PendingReview = "pending_staff_review"
+const defaultState = "MN"
 
 var caseID = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
@@ -73,10 +95,46 @@ func Load() (Schema, error) {
 	if err := json.Unmarshal(config.Intake, &schema); err != nil {
 		return Schema{}, fmt.Errorf("intake configuration: %w", err)
 	}
+	var counties map[string][]Option
+	if err := json.Unmarshal(config.Counties, &counties); err != nil {
+		return Schema{}, fmt.Errorf("county configuration: %w", err)
+	}
+	var states []stateConfig
+	if err := json.Unmarshal(config.States, &states); err != nil {
+		return Schema{}, fmt.Errorf("state configuration: %w", err)
+	}
+	schema.states = make(map[string]stateConfig, len(states))
+	for _, state := range states {
+		for i := range state.LocationFields {
+			field := &state.LocationFields[i]
+			if field.Type != "county" || len(field.Options) > 0 {
+				continue
+			}
+			field.Options = counties[state.CountySet]
+			if len(field.Options) == 0 {
+				return Schema{}, fmt.Errorf("no county options for state %q", state.Code)
+			}
+		}
+		if state.Code == "" || state.Name == "" || state.TimeZone == "" || schema.states[state.Code].Code != "" {
+			return Schema{}, fmt.Errorf("invalid or duplicate state %q", state.Code)
+		}
+		schema.states[state.Code] = state
+	}
 	if err := json.Unmarshal(config.Handoffs, &schema.handoffs); err != nil {
 		return Schema{}, fmt.Errorf("handoff configuration: %w", err)
 	}
+	if err := schema.validateHandoffs(); err != nil {
+		return Schema{}, err
+	}
 	return schema, nil
+}
+
+func (s Schema) state(code string) (stateConfig, bool) {
+	if code == "" {
+		code = defaultState
+	}
+	state, ok := s.states[code]
+	return state, ok
 }
 
 func officeKey(office *string) string {
@@ -90,14 +148,18 @@ func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
 	if input.SchemaVersion != s.Version || !ValidID(input.ID) {
 		return Record{}, fmt.Errorf("invalid record ID or intake schema version")
 	}
+	state, ok := s.state(input.StateCode)
+	if !ok {
+		return Record{}, fmt.Errorf("choose a supported state")
+	}
 	office := officeKey(input.RequestedOffice)
-	fields, known := s.OfficeFields[office]
+	fields, known := state.OfficeFields[office]
 	if !known || (input.RequestedOffice != nil && office == "triage") {
-		return Record{}, fmt.Errorf("choose a valid office or staff review")
+		return Record{}, fmt.Errorf("choose an office for this state or staff review")
 	}
 	hintOffice := ""
 	if input.RoutingHint != "" {
-		for _, hint := range s.RoutingHints {
+		for _, hint := range state.RoutingHints {
 			if hint.Value == input.RoutingHint {
 				hintOffice = hint.Office
 				break
@@ -126,7 +188,7 @@ func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
 		}
 	}
 	if input.Receipt["receivedAtCentral"] != "" {
-		input.Receipt["timeZone"] = "America/Chicago"
+		input.Receipt["timeZone"] = state.TimeZone
 	}
 	input.Contact = contact
 
@@ -137,12 +199,12 @@ func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
 	if countyCode := input.Concern["countyCode"]; countyCode != "" {
 		concernData["county"] = countyCode
 	}
-	concern, err := normalize(s.ConcernFields, concernData)
+	concern, err := normalize(append(slices.Clone(s.ConcernFields), state.LocationFields...), concernData)
 	if err != nil {
 		return Record{}, err
 	}
 	if code := concern["county"]; code != "" {
-		for _, field := range s.ConcernFields {
+		for _, field := range state.LocationFields {
 			if field.Key == "county" {
 				concern["county"] = field.display(code)
 				concern["countyCode"] = code
@@ -158,24 +220,20 @@ func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
 	input.OfficeDetails = details
 
 	flags := make([]string, 0)
-	if concern["urgency"] == "immediate_danger" {
-		flags = append(flags, "immediate_safety_concern")
+	for _, rule := range s.ReviewRules {
+		if (rule.State != "" && rule.State != state.Code) || (rule.Office != "" && rule.Office != office) ||
+			(rule.DifferentSuggestedOffice && (hintOffice == "" || hintOffice == office)) {
+			continue
+		}
+		if matches(rule.Concern, concern) && matches(rule.Details, details) && !slices.Contains(flags, rule.Flag) {
+			flags = append(flags, rule.Flag)
+		}
 	}
-	if concern["urgency"] == "time_sensitive" || details["urgentService"] == "yes" {
-		flags = append(flags, "time_sensitive")
+	record := Record{Input: input, CreatedAt: now.UTC(), Status: PendingReview, ReviewFlags: flags}
+	if route := s.handoffRule(record, state.Code); route != nil {
+		record.OutputContract = &route.Output.ContractRef
 	}
-	if office == "triage" || details["program"] == "other" || (hintOffice != "" && hintOffice != office) {
-		flags = append(flags, "routing_review")
-	}
-	switch {
-	case office == "ooltc" && details["topic"] == "notice":
-		flags = append(flags, "facility_notice_review")
-	case office == "omhdd" && details["topic"] == "incident":
-		flags = append(flags, "incident_report_review")
-	case office == "managed_care" && details["topic"] == "benefit_decision":
-		flags = append(flags, "appeal_review")
-	}
-	return Record{Input: input, CreatedAt: now.UTC(), Status: PendingReview, ReviewFlags: flags}, nil
+	return record, nil
 }
 
 func matches(when map[string][]string, values Values) bool {
@@ -237,7 +295,7 @@ func (field Field) display(value string) string {
 		}
 	}
 	if field.Type == "datetime-local" {
-		return strings.Replace(value, "T", " ", 1) + " Central time"
+		return strings.Replace(value, "T", " ", 1) + " local time"
 	}
 	return value
 }

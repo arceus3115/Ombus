@@ -3,111 +3,545 @@
     "office": "triage",
     "title": "Internal routing review",
     "channel": "Ombus staff review",
-    "instruction": "Confirm the responsible office and applicable disclosure authority before preparing an external handoff."
+    "instruction": "Confirm the responsible office and applicable disclosure authority before preparing an external handoff.",
+    "output": {
+      "id": "ombus.routing_review",
+      "version": 1,
+      "format": "internal_review"
+    }
   },
   {
+    "state": "MN",
     "office": "ooltc",
-    "when": {"topic":["notice"],"noticeType":["assisted_living_termination","emergency_relocation"]},
+    "when": {
+      "topic": [
+        "notice"
+      ],
+      "noticeType": [
+        "assisted_living_termination",
+        "emergency_relocation"
+      ]
+    },
     "title": "Assisted living notice",
     "channel": "OOLTC notice email or fax",
     "instruction": "Use the official assisted living cover sheet and include the original notice. Verify the notice type and dates before sending.",
     "sourceUrl": "https://mn.gov/ooltc/providerresources/submittingnotices/",
-    "fields": ["provider","noticeType","terminationReason","residentReceiptDate","noticeEffectiveDate"]
+    "output": {
+      "id": "mn.ooltc.assisted_living_notice",
+      "version": 1,
+      "format": "cover_sheet",
+      "fields": [
+        {
+          "name": "provider",
+          "source": "officeDetails.provider",
+          "required": true
+        },
+        {
+          "name": "noticeType",
+          "source": "officeDetails.noticeType",
+          "required": true
+        },
+        {
+          "name": "terminationReason",
+          "source": "officeDetails.terminationReason"
+        },
+        {
+          "name": "residentReceiptDate",
+          "source": "officeDetails.residentReceiptDate"
+        },
+        {
+          "name": "noticeEffectiveDate",
+          "source": "officeDetails.noticeEffectiveDate"
+        }
+      ],
+      "documents": [
+        "Official assisted living cover sheet",
+        "Original facility notice"
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "ooltc",
-    "when": {"topic":["notice"],"noticeType":["nursing_discharge_transfer"]},
+    "when": {
+      "topic": [
+        "notice"
+      ],
+      "noticeType": [
+        "nursing_discharge_transfer"
+      ]
+    },
     "title": "Nursing facility transfer or discharge notice",
     "channel": "OOLTC notice email or fax",
     "instruction": "Use the published nursing facility notice instructions and include the original notice.",
     "sourceUrl": "https://mn.gov/ooltc/providerresources/submittingnotices/",
-    "fields": ["provider","noticeType","residentReceiptDate","noticeEffectiveDate"]
+    "output": {
+      "id": "mn.ooltc.nursing_transfer_notice",
+      "version": 1,
+      "format": "document_checklist",
+      "fields": [
+        {
+          "name": "provider",
+          "source": "officeDetails.provider",
+          "required": true
+        },
+        {
+          "name": "noticeType",
+          "source": "officeDetails.noticeType",
+          "required": true
+        },
+        {
+          "name": "residentReceiptDate",
+          "source": "officeDetails.residentReceiptDate"
+        },
+        {
+          "name": "noticeEffectiveDate",
+          "source": "officeDetails.noticeEffectiveDate"
+        }
+      ],
+      "documents": [
+        "Original transfer or discharge notice"
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "ooltc",
-    "when": {"topic":["monitoring"]},
+    "when": {
+      "topic": [
+        "monitoring"
+      ]
+    },
     "title": "Electronic monitoring",
     "channel": "OOLTC electronic monitoring instructions",
     "instruction": "Verify whether the 14-day exception applies and use the corresponding consent form and submission instructions.",
     "sourceUrl": "https://mn.gov/ooltc/residentandfamilyresources/electronicmonitoring/",
-    "fields": ["provider","monitoringException"]
+    "output": {
+      "id": "mn.ooltc.monitoring",
+      "version": 1,
+      "format": "official_form",
+      "fields": [
+        {
+          "name": "provider",
+          "source": "officeDetails.provider"
+        },
+        {
+          "name": "monitoringException",
+          "source": "officeDetails.monitoringException"
+        }
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "ooltc",
     "title": "Long-term care intake",
     "channel": "OOLTC contact or notice instructions",
     "instruction": "Confirm resident direction, the issue type, and the permitted contact or disclosure before contacting the office.",
     "sourceUrl": "https://mn.gov/ooltc/contactus/",
-    "fields": ["topic","setting","provider","noticeType"]
+    "output": {
+      "id": "mn.ooltc.intake",
+      "version": 1,
+      "format": "staff_summary",
+      "fields": [
+        {
+          "name": "topic",
+          "source": "officeDetails.topic"
+        },
+        {
+          "name": "setting",
+          "source": "officeDetails.setting"
+        },
+        {
+          "name": "provider",
+          "source": "officeDetails.provider"
+        },
+        {
+          "name": "noticeType",
+          "source": "officeDetails.noticeType"
+        }
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "omhdd",
-    "when": {"topic":["incident"],"incidentType":["death","serious_injury"],"alreadyReported":["yes"]},
+    "when": {
+      "topic": [
+        "incident"
+      ],
+      "incidentType": [
+        "death",
+        "serious_injury"
+      ],
+      "alreadyReported": [
+        "yes"
+      ]
+    },
     "title": "Supplement an existing OMHDD incident report",
     "channel": "OMHDD published supplemental reporting channel",
     "instruction": "Verify the original case number and use OMHDD’s instructions for providing supplemental information.",
     "sourceUrl": "https://mn.gov/omhdd/reporting-death-or-serious-injury/",
-    "fields": ["provider","incidentType","incidentAtCentral","agencyReference"]
+    "output": {
+      "id": "mn.omhdd.incident_supplement",
+      "version": 1,
+      "format": "official_form",
+      "fields": [
+        {
+          "name": "provider",
+          "source": "officeDetails.provider"
+        },
+        {
+          "name": "incidentType",
+          "source": "officeDetails.incidentType"
+        },
+        {
+          "name": "incidentAtCentral",
+          "source": "officeDetails.incidentAtCentral"
+        },
+        {
+          "name": "agencyReference",
+          "source": "officeDetails.agencyReference",
+          "required": true
+        }
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "omhdd",
-    "when": {"topic":["incident"],"incidentType":["death","serious_injury"]},
+    "when": {
+      "topic": [
+        "incident"
+      ],
+      "incidentType": [
+        "death",
+        "serious_injury"
+      ]
+    },
     "title": "Death or serious injury report",
     "channel": "Official OMHDD incident webform",
     "instruction": "Use the official death or serious injury webform and capture the agency case number after filing.",
     "sourceUrl": "https://mn.gov/omhdd/reporting-death-or-serious-injury/",
-    "fields": ["provider","incidentType","incidentAtCentral","alreadyReported"]
+    "output": {
+      "id": "mn.omhdd.incident_report",
+      "version": 1,
+      "format": "web_form",
+      "fields": [
+        {
+          "name": "provider",
+          "source": "officeDetails.provider"
+        },
+        {
+          "name": "incidentType",
+          "source": "officeDetails.incidentType",
+          "required": true
+        },
+        {
+          "name": "incidentAtCentral",
+          "source": "officeDetails.incidentAtCentral",
+          "required": true
+        },
+        {
+          "name": "alreadyReported",
+          "source": "officeDetails.alreadyReported"
+        }
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "omhdd",
-    "when": {"topic":["incident"],"incidentType":["manual_restraint"]},
+    "when": {
+      "topic": [
+        "incident"
+      ],
+      "incidentType": [
+        "manual_restraint"
+      ]
+    },
     "title": "Emergency manual restraint",
     "channel": "External reporting under Minn. Stat. § 245D.061",
     "instruction": "Confirm which reporting requirements apply and use the approved reporting channel for the license holder.",
     "sourceUrl": "https://www.revisor.mn.gov/statutes/cite/245D.061",
-    "fields": ["provider","incidentType","incidentAtCentral","supportTeamReviewDate","alreadyReported","agencyReference"]
+    "output": {
+      "id": "mn.omhdd.restraint",
+      "version": 1,
+      "format": "document_checklist",
+      "fields": [
+        {
+          "name": "provider",
+          "source": "officeDetails.provider"
+        },
+        {
+          "name": "incidentType",
+          "source": "officeDetails.incidentType"
+        },
+        {
+          "name": "incidentAtCentral",
+          "source": "officeDetails.incidentAtCentral"
+        },
+        {
+          "name": "supportTeamReviewDate",
+          "source": "officeDetails.supportTeamReviewDate"
+        },
+        {
+          "name": "alreadyReported",
+          "source": "officeDetails.alreadyReported"
+        },
+        {
+          "name": "agencyReference",
+          "source": "officeDetails.agencyReference"
+        }
+      ],
+      "documents": [
+        "Incident report",
+        "Internal review and corrective action plan if applicable",
+        "Expanded support team review summary"
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "omhdd",
-    "when": {"topic":["civil_commitment"]},
+    "when": {
+      "topic": [
+        "civil_commitment"
+      ]
+    },
     "title": "Civil commitment support",
     "channel": "Civil Commitment Training and Resource Center",
     "instruction": "Use the published contact instructions for information, training, or advocacy.",
     "sourceUrl": "https://mn.gov/omhdd/commitment/",
-    "fields": ["provider","commitmentHelp"]
+    "output": {
+      "id": "mn.omhdd.commitment",
+      "version": 1,
+      "format": "staff_summary",
+      "fields": [
+        {
+          "name": "provider",
+          "source": "officeDetails.provider"
+        },
+        {
+          "name": "commitmentHelp",
+          "source": "officeDetails.commitmentHelp"
+        }
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "omhdd",
     "title": "OMHDD intake",
     "channel": "OMHDD regional or general intake",
     "instruction": "Confirm the appropriate OMHDD intake route and the information authorized for disclosure.",
     "sourceUrl": "https://mn.gov/omhdd/client-services/how-to-file-a-complaint.jsp",
-    "fields": ["topic","provider","serviceType"]
+    "output": {
+      "id": "mn.omhdd.intake",
+      "version": 1,
+      "format": "staff_summary",
+      "fields": [
+        {
+          "name": "topic",
+          "source": "officeDetails.topic"
+        },
+        {
+          "name": "provider",
+          "source": "officeDetails.provider"
+        },
+        {
+          "name": "serviceType",
+          "source": "officeDetails.serviceType"
+        }
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "managed_care",
-    "when": {"topic":["benefit_decision"],"appealStage":["decision","hearing"]},
+    "when": {
+      "topic": [
+        "benefit_decision"
+      ],
+      "appealStage": [
+        "decision",
+        "hearing"
+      ]
+    },
     "title": "Managed care state fair hearing review",
     "channel": "DHS Appeal to State Agency form",
     "instruction": "Confirm hearing status and applicable deadlines before preparing or supplementing an official request.",
     "sourceUrl": "https://mn.gov/dhs/health-care/resources/resolve-problems-with-care/",
-    "fields": ["program","healthPlan","appealStage","appealDecisionDate"]
+    "output": {
+      "id": "mn.managed_care.fair_hearing",
+      "version": 1,
+      "format": "official_form",
+      "fields": [
+        {
+          "name": "program",
+          "source": "officeDetails.program"
+        },
+        {
+          "name": "healthPlan",
+          "source": "officeDetails.healthPlan"
+        },
+        {
+          "name": "appealStage",
+          "source": "officeDetails.appealStage",
+          "required": true
+        },
+        {
+          "name": "appealDecisionDate",
+          "source": "officeDetails.appealDecisionDate"
+        }
+      ],
+      "documents": [
+        "Appeal to State Agency form",
+        "Applicable plan notices and case documents"
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "managed_care",
-    "when": {"topic":["benefit_decision"],"appealStage":["not_started","pending"]},
+    "when": {
+      "topic": [
+        "benefit_decision"
+      ],
+      "appealStage": [
+        "not_started",
+        "pending"
+      ]
+    },
     "title": "Health plan appeal",
     "channel": "Health plan appeal instructions",
     "instruction": "Use the appeal instructions on the health plan notice and confirm filing status, urgency, and continued benefits.",
     "sourceUrl": "https://mn.gov/dhs/health-care/resources/resolve-problems-with-care/",
-    "fields": ["program","healthPlan","decisionType","appealStage","actionNoticeDate","actionEffectiveDate","planAppealFiledDate","urgentService"]
+    "output": {
+      "id": "mn.managed_care.plan_appeal",
+      "version": 1,
+      "format": "staff_summary",
+      "fields": [
+        {
+          "name": "program",
+          "source": "officeDetails.program"
+        },
+        {
+          "name": "healthPlan",
+          "source": "officeDetails.healthPlan"
+        },
+        {
+          "name": "decisionType",
+          "source": "officeDetails.decisionType"
+        },
+        {
+          "name": "appealStage",
+          "source": "officeDetails.appealStage"
+        },
+        {
+          "name": "actionNoticeDate",
+          "source": "officeDetails.actionNoticeDate"
+        },
+        {
+          "name": "actionEffectiveDate",
+          "source": "officeDetails.actionEffectiveDate"
+        },
+        {
+          "name": "planAppealFiledDate",
+          "source": "officeDetails.planAppealFiledDate"
+        },
+        {
+          "name": "urgentService",
+          "source": "officeDetails.urgentService"
+        }
+      ]
+    }
   },
   {
+    "state": "MN",
     "office": "managed_care",
     "title": "Managed care intake",
     "channel": "Managed Care Ombudsperson contact",
     "instruction": "Confirm program, plan, and issue type before using the published office contact instructions.",
     "sourceUrl": "https://mn.gov/dhs/health-care/resources/resolve-problems-with-care/ombudsperson/",
-    "fields": ["program","healthPlan","topic","contactedPlan"]
+    "output": {
+      "id": "mn.managed_care.intake",
+      "version": 1,
+      "format": "staff_summary",
+      "fields": [
+        {
+          "name": "program",
+          "source": "officeDetails.program"
+        },
+        {
+          "name": "healthPlan",
+          "source": "officeDetails.healthPlan"
+        },
+        {
+          "name": "topic",
+          "source": "officeDetails.topic"
+        },
+        {
+          "name": "contactedPlan",
+          "source": "officeDetails.contactedPlan"
+        }
+      ]
+    }
+  },
+  {
+    "state": "WI",
+    "office": "wi_boaltc",
+    "title": "Wisconsin long-term care concern",
+    "channel": "Official Board on Aging and Long Term Care complaint form",
+    "instruction": "Review the details and confirm authority to share them. The Board also publishes phone, fax, and mail options.",
+    "sourceUrl": "https://boaltc.wi.gov/Pages/Ombudsman/DisputeResolution.aspx",
+    "output": {
+      "id": "wi.boaltc.consumer_concern",
+      "version": 1,
+      "format": "web_form",
+      "fields": [
+        {
+          "name": "concern_description",
+          "source": "concern.summary",
+          "required": true
+        },
+        {
+          "name": "service_location",
+          "source": "concern.serviceLocation"
+        },
+        {
+          "name": "facility_or_program",
+          "source": "officeDetails.provider"
+        },
+        {
+          "name": "callback_phone",
+          "source": "contact.phone"
+        },
+        {
+          "name": "callback_email",
+          "source": "contact.email"
+        },
+        {
+          "name": "planned_move_date",
+          "source": "officeDetails.plannedMoveDate"
+        }
+      ],
+      "requiredAny": [
+        {
+          "label": "County or facility/program name",
+          "fields": [
+            "service_location",
+            "facility_or_program"
+          ]
+        },
+        {
+          "label": "Safe callback phone or email, or staff review of an anonymous request",
+          "fields": [
+            "callback_phone",
+            "callback_email"
+          ]
+        }
+      ]
+    }
   }
 ]

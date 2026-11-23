@@ -1,27 +1,20 @@
 {
   "version": 1,
-  "offices": [
-    {"value":"ooltc","label":"Long-Term Care","description":"Care, rights, discharge, or transfer in a nursing home, assisted living, or home care setting."},
-    {"value":"omhdd","label":"Mental Health and Developmental Disabilities","description":"Service or rights concerns, guardianship, civil commitment, or reportable incidents."},
-    {"value":"managed_care","label":"Public Managed Health Care","description":"Access, billing, grievances, or benefit decisions for a Medical Assistance or MinnesotaCare managed care plan."},
-    {"value":"triage","label":"Staff review","description":"Use when the right office is unclear or more than one office may be involved."}
-  ],
-  "routingHints": [
-    {"value":"facility_notice","label":"Long-term care discharge, transfer, or termination notice","office":"ooltc","topic":"notice"},
-    {"value":"resident_rights","label":"Long-term care services or resident rights","office":"ooltc","topic":"complaint"},
-    {"value":"monitoring","label":"Electronic monitoring in a long-term care facility","office":"ooltc","topic":"monitoring"},
-    {"value":"client_services","label":"Mental health or disability services or client rights","office":"omhdd","topic":"client_services"},
-    {"value":"guardian","label":"Guardian actions involving a mental health or disability services client","office":"omhdd","topic":"guardian"},
-    {"value":"incident","label":"Death, serious injury, or emergency restraint involving a mental health or disability services client","office":"omhdd","topic":"incident"},
-    {"value":"civil_commitment","label":"Civil commitment","office":"omhdd","topic":"civil_commitment"},
-    {"value":"access_or_billing","label":"Public managed care coverage, access, or billing","office":"managed_care","topic":"access_or_billing"},
-    {"value":"grievance","label":"Public managed care quality or rights grievance","office":"managed_care","topic":"grievance"},
-    {"value":"benefit_decision","label":"Public managed care benefit denial, reduction, termination, or appeal","office":"managed_care","topic":"benefit_decision"},
-    {"value":"unsure","label":"Multiple concerns or not sure","office":"triage"}
+  "reviewRules": [
+    {"flag":"immediate_safety_concern","concern":{"urgency":["immediate_danger"]}},
+    {"flag":"time_sensitive","concern":{"urgency":["time_sensitive"]}},
+    {"flag":"time_sensitive","state":"MN","office":"managed_care","details":{"urgentService":["yes"]}},
+    {"flag":"routing_review","office":"triage"},
+    {"flag":"routing_review","state":"WI","office":"wi_boaltc","details":{"ageBand":["under_60","unknown"]}},
+    {"flag":"routing_review","state":"WI","office":"wi_boaltc","details":{"setting":["other","unknown"]}},
+    {"flag":"routing_review","state":"MN","office":"managed_care","details":{"program":["other"]}},
+    {"flag":"routing_review","differentSuggestedOffice":true},
+    {"flag":"facility_notice_review","state":"MN","office":"ooltc","details":{"topic":["notice"]}},
+    {"flag":"incident_report_review","state":"MN","office":"omhdd","details":{"topic":["incident"]}},
+    {"flag":"appeal_review","state":"MN","office":"managed_care","details":{"topic":["benefit_decision"]}}
   ],
   "concernFields": [
     {"key":"relationship","label":"Who is the concern about?","type":"select","required":true,"options":[{"value":"self","label":"Me"},{"value":"family_or_friend","label":"A family member or someone I support"},{"value":"representative","label":"Someone I formally represent"},{"value":"provider","label":"Someone my organization serves"},{"value":"systemic","label":"Multiple people or a broader issue"},{"value":"other","label":"Someone else"}]},
-    {"key":"county","label":"Minnesota county","type":"county","options":[{"value":"27001","label":"Aitkin"},{"value":"27003","label":"Anoka"},{"value":"27005","label":"Becker"},{"value":"27007","label":"Beltrami"},{"value":"27009","label":"Benton"},{"value":"27011","label":"Big Stone"},{"value":"27013","label":"Blue Earth"},{"value":"27015","label":"Brown"},{"value":"27017","label":"Carlton"},{"value":"27019","label":"Carver"},{"value":"27021","label":"Cass"},{"value":"27023","label":"Chippewa"},{"value":"27025","label":"Chisago"},{"value":"27027","label":"Clay"},{"value":"27029","label":"Clearwater"},{"value":"27031","label":"Cook"},{"value":"27033","label":"Cottonwood"},{"value":"27035","label":"Crow Wing"},{"value":"27037","label":"Dakota"},{"value":"27039","label":"Dodge"},{"value":"27041","label":"Douglas"},{"value":"27043","label":"Faribault"},{"value":"27045","label":"Fillmore"},{"value":"27047","label":"Freeborn"},{"value":"27049","label":"Goodhue"},{"value":"27051","label":"Grant"},{"value":"27053","label":"Hennepin"},{"value":"27055","label":"Houston"},{"value":"27057","label":"Hubbard"},{"value":"27059","label":"Isanti"},{"value":"27061","label":"Itasca"},{"value":"27063","label":"Jackson"},{"value":"27065","label":"Kanabec"},{"value":"27067","label":"Kandiyohi"},{"value":"27069","label":"Kittson"},{"value":"27071","label":"Koochiching"},{"value":"27073","label":"Lac qui Parle"},{"value":"27075","label":"Lake"},{"value":"27077","label":"Lake of the Woods"},{"value":"27079","label":"Le Sueur"},{"value":"27081","label":"Lincoln"},{"value":"27083","label":"Lyon"},{"value":"27087","label":"Mahnomen"},{"value":"27089","label":"Marshall"},{"value":"27091","label":"Martin"},{"value":"27085","label":"McLeod"},{"value":"27093","label":"Meeker"},{"value":"27095","label":"Mille Lacs"},{"value":"27097","label":"Morrison"},{"value":"27099","label":"Mower"},{"value":"27101","label":"Murray"},{"value":"27103","label":"Nicollet"},{"value":"27105","label":"Nobles"},{"value":"27107","label":"Norman"},{"value":"27109","label":"Olmsted"},{"value":"27111","label":"Otter Tail"},{"value":"27113","label":"Pennington"},{"value":"27115","label":"Pine"},{"value":"27117","label":"Pipestone"},{"value":"27119","label":"Polk"},{"value":"27121","label":"Pope"},{"value":"27123","label":"Ramsey"},{"value":"27125","label":"Red Lake"},{"value":"27127","label":"Redwood"},{"value":"27129","label":"Renville"},{"value":"27131","label":"Rice"},{"value":"27133","label":"Rock"},{"value":"27135","label":"Roseau"},{"value":"27137","label":"Saint Louis"},{"value":"27139","label":"Scott"},{"value":"27141","label":"Sherburne"},{"value":"27143","label":"Sibley"},{"value":"27145","label":"Stearns"},{"value":"27147","label":"Steele"},{"value":"27149","label":"Stevens"},{"value":"27151","label":"Swift"},{"value":"27153","label":"Todd"},{"value":"27155","label":"Traverse"},{"value":"27157","label":"Wabasha"},{"value":"27159","label":"Wadena"},{"value":"27161","label":"Waseca"},{"value":"27163","label":"Washington"},{"value":"27165","label":"Watonwan"},{"value":"27167","label":"Wilkin"},{"value":"27169","label":"Winona"},{"value":"27171","label":"Wright"},{"value":"27173","label":"Yellow Medicine"}],"help":"Search and select the county where the person receives services, if known."},
     {"key":"subjectName","label":"Name of the person affected","type":"text","max":120,"when":{"relationship":["family_or_friend","representative","provider","other"]}},
     {"key":"summary","label":"What happened?","type":"textarea","max":3000,"required":true,"help":"Describe the concern and include any important dates you know."},
     {"key":"desiredOutcome","label":"What would help resolve the concern?","type":"textarea","max":1500,"rows":2},
@@ -37,46 +30,6 @@
     {"key":"contactName","label":"Reporter’s name","type":"text","max":120,"additional":true},
     {"key":"contactNotes","label":"Safe times or contact instructions","type":"text","max":240,"additional":true,"when":{"contactMethod":["phone","email"]}},
     {"key":"accessNeeds","label":"Language or accessibility needs","type":"text","max":240,"additional":true,"help":"For example, an interpreter, relay service, or accessible documents."},
-    {"key":"receivedAtCentral","label":"When the concern came in","type":"datetime-local","additional":true,"help":"Enter the date and time in Minnesota local time."}
-  ],
-  "officeFields": {
-    "ooltc": [
-      {"key":"topic","label":"Long-term care issue","type":"select","required":true,"options":[{"value":"complaint","label":"Care or resident rights complaint"},{"value":"notice","label":"Discharge, transfer, relocation, or termination notice"},{"value":"monitoring","label":"Electronic monitoring question or exception"},{"value":"information","label":"Information or consultation"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"setting","label":"Care setting","type":"select","additional":true,"options":[{"value":"nursing","label":"Nursing facility"},{"value":"assisted_living","label":"Assisted living"},{"value":"home_care","label":"Home care"},{"value":"boarding","label":"Boarding care home"},{"value":"other","label":"Other long-term care setting"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"provider","label":"Facility or provider name","type":"text","max":160},
-      {"key":"noticeType","label":"Notice type","type":"select","required":true,"when":{"topic":["notice"]},"options":[{"value":"assisted_living_termination","label":"Assisted living contract termination"},{"value":"emergency_relocation","label":"Assisted living emergency relocation"},{"value":"nursing_discharge_transfer","label":"Nursing facility discharge or transfer"},{"value":"closure","label":"Facility closure"},{"value":"other","label":"Other notice"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"terminationReason","label":"Reason stated on the assisted living notice","type":"radio","when":{"noticeType":["assisted_living_termination"]},"options":[{"value":"nonpayment","label":"Nonpayment"},{"value":"contract_violation","label":"Contract violation"},{"value":"expedited","label":"Expedited termination for health or safety"},{"value":"other","label":"Other reason"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"residentReceiptDate","label":"Date the resident received the notice","type":"date","when":{"topic":["notice"]}},
-      {"key":"noticeEffectiveDate","label":"Planned move or termination date","type":"date","when":{"topic":["notice"]}},
-      {"key":"residentWishes","label":"What has the resident said they want?","type":"textarea","max":1500,"rows":2,"additional":true,"help":"Record their reported wishes if known. Staff verify consent separately.","when":{"topic":["complaint","notice"]}},
-      {"key":"monitoringException","label":"Does this concern the 14-day exception for notifying the facility?","type":"radio","options":[{"value":"yes","label":"Yes"},{"value":"no","label":"No"},{"value":"unknown","label":"Not sure"}],"when":{"topic":["monitoring"]}}
-    ],
-    "omhdd": [
-      {"key":"topic","label":"Mental health or disability issue","type":"select","required":true,"options":[{"value":"client_services","label":"Service access, quality, or client rights"},{"value":"guardian","label":"Guardian actions"},{"value":"incident","label":"Death, serious injury, or emergency manual restraint"},{"value":"civil_commitment","label":"Civil commitment information, advocacy, or training"},{"value":"systemic","label":"Program-wide concern"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"serviceType","label":"Service type","type":"select","additional":true,"options":[{"value":"mental_health","label":"Mental health"},{"value":"developmental_disabilities","label":"Developmental disabilities"},{"value":"substance_use","label":"Substance use services"},{"value":"emotional_disturbance","label":"Emotional disturbance services"},{"value":"other","label":"Other"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"provider","label":"Agency, facility, or program name","type":"text","max":160},
-      {"key":"incidentType","label":"Incident type","type":"radio","required":true,"when":{"topic":["incident"]},"options":[{"value":"death","label":"Death"},{"value":"serious_injury","label":"Serious injury"},{"value":"manual_restraint","label":"Emergency manual restraint"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"incidentAtCentral","label":"When the incident occurred","type":"datetime-local","help":"Enter the date and time in Minnesota local time.","when":{"topic":["incident"]}},
-      {"key":"supportTeamReviewDate","label":"Date of expanded support team review","type":"date","when":{"incidentType":["manual_restraint"]}},
-      {"key":"alreadyReported","label":"Has this incident already been reported to OMHDD?","type":"radio","options":[{"value":"yes","label":"Yes"},{"value":"no","label":"No"},{"value":"unknown","label":"Not sure"}],"when":{"topic":["incident"]}},
-      {"key":"agencyReference","label":"Existing OMHDD case number","type":"text","max":80,"when":{"alreadyReported":["yes"]}},
-      {"key":"commitmentHelp","label":"Civil commitment assistance requested","type":"radio","when":{"topic":["civil_commitment"]},"options":[{"value":"information","label":"Information or referral"},{"value":"advocacy","label":"Individual advocacy"},{"value":"training","label":"Training"},{"value":"unknown","label":"Not sure"}]}
-    ],
-    "managed_care": [
-      {"key":"topic","label":"Managed care issue","type":"radio","required":true,"options":[{"value":"access_or_billing","label":"Coverage, access, or billing question"},{"value":"grievance","label":"Quality of care, service, or rights grievance"},{"value":"benefit_decision","label":"Benefit denial, reduction, termination, or appeal"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"program","label":"Health coverage program","type":"radio","options":[{"value":"medical_assistance","label":"Medical Assistance"},{"value":"minnesotacare","label":"MinnesotaCare"},{"value":"other","label":"Other coverage"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"healthPlan","label":"Managed health plan name","type":"text","max":160},
-      {"key":"contactedPlan","label":"Has the enrollee contacted the health plan?","type":"radio","options":[{"value":"yes","label":"Yes"},{"value":"no","label":"No"},{"value":"unknown","label":"Not sure"}],"additional":true},
-      {"key":"decisionType","label":"Health plan action","type":"radio","when":{"topic":["benefit_decision"]},"options":[{"value":"denial","label":"Denied a service"},{"value":"reduction","label":"Reduced or suspended services"},{"value":"termination","label":"Ended services"},{"value":"payment_denial","label":"Denied payment"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"appealStage","label":"Where is the appeal now?","type":"select","required":true,"when":{"topic":["benefit_decision"]},"options":[{"value":"not_started","label":"Plan appeal yet to be filed"},{"value":"pending","label":"Plan appeal pending"},{"value":"decision","label":"Plan appeal decision received"},{"value":"hearing","label":"State fair hearing requested"},{"value":"unknown","label":"Not sure"}]},
-      {"key":"actionNoticeDate","label":"Date on the plan’s original action notice","type":"date","when":{"topic":["benefit_decision"]}},
-      {"key":"actionEffectiveDate","label":"Date the plan change takes effect","type":"date","when":{"topic":["benefit_decision"]}},
-      {"key":"planAppealFiledDate","label":"Date the plan appeal was filed","type":"date","when":{"appealStage":["pending","decision","hearing"]}},
-      {"key":"appealDecisionDate","label":"Date on the plan’s appeal decision notice","type":"date","when":{"appealStage":["decision","hearing"]}},
-      {"key":"urgentService","label":"Is the appeal about a service needed urgently?","type":"radio","options":[{"value":"yes","label":"Yes"},{"value":"no","label":"No"},{"value":"unknown","label":"Not sure"}],"when":{"topic":["benefit_decision"]}}
-    ],
-    "triage": [
-      {"key":"routingNotes","label":"What may help staff identify the right office?","type":"textarea","max":1500,"help":"For example, the provider, a health plan, or any offices already contacted."}
-    ]
-  }
+    {"key":"receivedAtCentral","label":"When the concern came in","type":"datetime-local","additional":true,"help":"Enter the date and time where the concern was received."}
+  ]
 }

@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	port := flag.Int("port", 8766, "local HTTP port")
+	port := flag.Int("port", 8765, "local HTTP port")
 	data := flag.String("data", "data/cases", "directory for case records")
 	assets := flag.String("assets", "web/dist", "built frontend directory")
 	flag.Parse()

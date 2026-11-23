@@ -45,7 +45,7 @@ function createField(field: Field, prefix: string, value?: string): FieldRow {
     }
     element.append(choices);
   } else {
-    const controlType = ['select', 'textarea'].includes(field.type) ? field.type : 'input';
+    const controlType = field.type === 'select' || field.type === 'textarea' ? field.type : 'input';
     const input = node(controlType);
     input.id = id;
     if (input instanceof HTMLInputElement) input.type = field.type === 'county' ? 'text' : field.type;
@@ -83,9 +83,8 @@ export function createGroup(
       values[field.key] = value;
       onInput();
       if (row.error.textContent && !validationMessage(row)) setError(row, '');
-      
     };
-    if (field.type === 'county') bindCountyPicker(row.controls[0] as HTMLInputElement, row.element, setValue);
+    if (field.type === 'county') bindCountyPicker(row.controls[0] as HTMLInputElement, row.element, field.options ?? [], setValue);
     else row.element.addEventListener('input', (event) => setValue((event.target as FieldControl).value));
     return row;
   });
@@ -108,7 +107,7 @@ export function setError(row: FieldRow, message: string) {
 export function validationMessage(row: FieldRow) {
   const [control] = row.controls;
   if (row.field.type === 'county' && control.value.trim() && !control.dataset.selectedCounty) {
-    return 'Select a Minnesota county from the matches, or clear the search.';
+    return 'Select a county from the matches, or clear the search.';
   }
   if (row.field.required && !row.field.options && !control.value.trim() && !control.validity.badInput) {
     return 'Enter a response for this field.';

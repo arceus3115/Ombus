@@ -1,6 +1,6 @@
-import { minnesotaCounties } from './model.ts';
+import { minnesotaCounties, type Option } from './model.ts';
 
-export function searchCounties(query: string) {
+export function searchCounties(query: string, options: readonly Option[] = minnesotaCounties) {
   const search = query.toLowerCase().trim().replace(/\s+county$/, '').replace(/^st\.?\s+/, 'saint ').replace(/\s+/g, ' ');
-  return minnesotaCounties.filter(({ value, label }) => label.toLowerCase().includes(search) || value.startsWith(search));
+  return options.filter(({ value, label }) => label.toLowerCase().includes(search) || value.startsWith(search));
 }

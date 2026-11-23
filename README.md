@@ -1,19 +1,61 @@
 # Ombus
 
-Ombus is a local intake prototype for Minnesota’s Long-Term Care, Mental Health and Developmental Disabilities, and Public Managed Health Care ombudsman offices.
+Ombus is a local ombudsman intake workspace. It includes Minnesota’s three pilot offices and an experimental Wisconsin long-term care route.
 
-## Run the intake
+## Run locally
 
-Start a loopback server from the project directory.
+Install Node.js 22.18 or later with npm, and Go 1.25 or later. From the Ombus repository root, install the frontend dependencies, build the frontend, and start the Go server.
 
 ```sh
-python3 -m http.server 8765 --bind 127.0.0.1
+npm ci
+npm run build
+go run ./cmd/ombus
 ```
 
-Open [the intake](http://127.0.0.1:8765) in a browser. Use fictional or de-identified information. The form keeps the draft in memory and downloads a JSON record after review. Agency submissions and persistent case storage require a separate integration.
+Keep that terminal open and visit [New intake](http://127.0.0.1:8765/) or the [case queue](http://127.0.0.1:8765/cases). Press `Ctrl+C` to stop the server. Run `npm run build` again after changing the frontend. Restart the server after changing Go code or files under `config/`. If you change the shared intake fields or county list, rebuild the frontend and restart the server.
 
-The flow captures the shared concern, contact, and receipt information first. The county picker uses the 87 official Minnesota county names and codes. Contact and office steps put core questions first and reveal optional detail under **Have more info?** An optional issue selection suggests a route and can prefill the office’s issue field. Staff can choose or change the office and issue, including the staff-review route for uncertain or overlapping matters. [Minnesota County ID Standard](https://mn.gov/mngeo/assets/MN_GAC_County_ID_Standard_tcm1235-754089.pdf)
+To use a different port and a separate case directory, run the server with these flags and visit [port 8766](http://127.0.0.1:8766/).
 
-The versioned JSON record is Ombus’s internal format. It includes the selected office, applicable answers, and review flags. For an external handoff, map only the permitted fields to the approved channel for the selected office and workflow. Use the recipient’s official form or a staff-reviewed summary where appropriate. Use a JSON payload when the office provides an approved API and schema. Capture the acknowledgement or agency reference separately from the local record ID.
+```sh
+go run ./cmd/ombus -port 8766 -data ./data/sample-cases
+```
 
-Run the intake model checks with `node --test`. See the [Minnesota workflow research](docs/minnesota-ombudsman-workflows.md) for the office responsibilities and underlying sources.
+Use fictional or de-identified information. The server binds to loopback and stores unencrypted case files in `data/cases` by default. The `data/` directory is ignored by Git. Multi-user access and live case data require authentication, authorization, and approved storage.
+
+## Project layout
+
+| Path | Purpose |
+| --- | --- |
+| `web/src/features/intake/` | Four-step intake, routing suggestions, and review |
+| `web/src/features/cases/` | Case queue, record detail, and handoff preview |
+| `web/src/components/` | Shared field renderer, county picker, review sections, and status indicators |
+| `web/src/styles/` | Shared tokens, layout, components, and surface styles |
+| `config/` | Shared intake fields, state and topic profiles, county codes, review rules, and output contracts |
+| `internal/intake/` | Validation, record normalization, review flags, and handoff selection |
+| `internal/store/` | Local case storage |
+| `internal/server/` | JSON API and same-origin frontend serving |
+| `cmd/ombus/` | Server entry point |
+
+## Records and handoffs
+
+The browser sends versioned JSON to `POST /api/cases`. Go validates the active questions, removes answers from inactive branches, and saves the intake as pending staff review. Retrying an identical request returns the original record. `GET /api/cases` provides queue metadata, and `GET /api/cases/{id}` returns the saved record and its handoff preview.
+
+## Multi-state routing experiment
+
+In **New intake**, choose Minnesota or Wisconsin, then select **Long-term care services or resident rights** under **Office Details**. The same topic selects each state’s long-term care office. Wisconsin asks about age band and care setting. Unsure or potentially out-of-scope answers route to staff review. On a saved case, inspect **Output schema** and download a preview containing the generated JSON Schema, mapped data, and missing information. [Minnesota workflow research](docs/minnesota-ombudsman-workflows.md), [Wisconsin program guidance](https://boaltc.wi.gov/Pages/Ombudsman.aspx)
+
+| Configuration unit | What it controls |
+| --- | --- |
+| **State** | `config/states.json` defines participating offices, location questions, and the default time zone. `config/counties.json` provides reusable county lists by code. |
+| **Office topic** | `routingHints` maps a topic within a state to an office and its initial issue type. `officeFields` supplies follow-up questions. `config/intake.json` contains shared questions and review flags. |
+| **Output schema** | `config/handoffs.json` maps state, office, and issue to a versioned contract. It defines the channel, permitted fields, required alternatives, and documents to prepare. Put specific rules before an office’s fallback. Keep retired versions for saved cases and set `retired` to `true` when a version stops accepting new intakes. |
+
+A submission here creates an Ombus receipt and staff review case. The output preview models what staff would prepare for the agency’s published channel. Public rollout would separate resident submission and status from restricted staff review, add an approved delivery integration per office, and track the agency’s acknowledgement separately from the Ombus receipt. [Wisconsin complaint channels](https://boaltc.wi.gov/Pages/Ombudsman/DisputeResolution.aspx), [Minnesota County ID Standard](https://mn.gov/mngeo/assets/MN_GAC_County_ID_Standard_tcm1235-754089.pdf)
+
+## Verify
+
+```sh
+npm run typecheck
+npm test
+go test ./...
+```

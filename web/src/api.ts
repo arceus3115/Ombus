@@ -1,8 +1,9 @@
-export type Office = 'ooltc' | 'omhdd' | 'managed_care';
+export type Office = string;
 export type Values = Record<string, string | undefined>;
 export type CaseInput = {
   id: string;
   schemaVersion: number;
+  stateCode?: string;
   requestedOffice: Office | null;
   routingHint?: string;
   receipt: Values;
@@ -14,10 +15,12 @@ export type CaseRecord = CaseInput & {
   createdAt: string;
   status: 'pending_staff_review';
   reviewFlags: string[];
+  outputContract?: { id: string; version: number };
 };
 export type CaseSummary = Pick<CaseRecord, 'id' | 'createdAt' | 'requestedOffice' | 'status' | 'reviewFlags'> & {
   topic?: string;
   county?: string;
+  stateCode: string;
 };
 export type CaseDetails = {
   record: CaseRecord;
@@ -27,6 +30,16 @@ export type CaseDetails = {
     instruction: string;
     sourceUrl?: string;
     fields: { label: string; value: string }[];
+    output?: {
+      id: string;
+      version: number;
+      format: string;
+      schema: { properties: Record<string, unknown> };
+      requiredAny?: { label: string; fields: string[] }[];
+      values: Values;
+      missing: string[];
+      documents?: string[];
+    };
   };
 };
 
@@ -46,11 +59,15 @@ export const listCases = () => request<CaseSummary[]>('/api/cases');
 export const getCase = (id: string) => request<CaseDetails>(`/api/cases/${encodeURIComponent(id)}`);
 
 export function downloadCase(record: CaseRecord): void {
-  const file = new Blob([JSON.stringify(record, null, 2) + '\n'], { type: 'application/json' });
+  downloadJSON(`ombus-intake-${record.id}.json`, record);
+}
+
+export function downloadJSON(name: string, value: unknown): void {
+  const file = new Blob([JSON.stringify(value, null, 2) + '\n'], { type: 'application/json' });
   const url = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `ombus-intake-${record.id}.json`;
+  link.download = name;
   document.body.append(link);
   link.click();
   link.remove();
