@@ -1,4 +1,11 @@
-import { downloadCase, downloadJSON, getCase, listCases, type CaseDetails, type CaseSummary } from '../../api.ts';
+import {
+  downloadCase,
+  downloadJSON,
+  getCase,
+  listCases,
+  type CaseDetails,
+  type CaseSummary,
+} from '../../api.ts';
 import { byId, headingLink, node } from '../../components/dom.ts';
 import { displayFlags } from '../../components/status.ts';
 import { reviewGroup } from '../../components/review.ts';
@@ -6,11 +13,16 @@ import { concernQuestions, contactFields, stateProfile } from '../intake/model.t
 import { reviewEntries } from '../intake/review-entries.ts';
 
 const dateTime = new Intl.DateTimeFormat('en-US', {
-  dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Chicago',
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'America/Chicago',
 });
 
 function officeName(office: CaseSummary['requestedOffice'], stateCode?: string): string {
-  return stateProfile(stateCode).offices.find((item) => item.value === (office ?? 'triage'))?.label ?? 'Staff review';
+  return (
+    stateProfile(stateCode).offices.find((item) => item.value === (office ?? 'triage'))?.label ??
+    'Staff review'
+  );
 }
 
 function title(heading: string, description: string) {
@@ -45,7 +57,13 @@ function caseList(cases: CaseSummary[]) {
     const information = node('div');
     information.append(
       node('strong', '', officeName(record.requestedOffice, record.stateCode)),
-      node('p', 'case-description', [stateProfile(record.stateCode).name, record.topic, record.county].filter(Boolean).join(' · ')),
+      node(
+        'p',
+        'case-description',
+        [stateProfile(record.stateCode).name, record.topic, record.county]
+          .filter(Boolean)
+          .join(' · '),
+      ),
     );
     if (record.reviewFlags.length) information.append(displayFlags(record.reviewFlags));
     const metadata = node('div', 'case-meta');
@@ -70,10 +88,22 @@ function caseDetail({ record, handoff }: CaseDetails) {
   saved.body.append(
     reviewGroup('Concern', [
       ['State', state.name],
-      ...reviewEntries(concernQuestions(state.code), { ...record.concern, county: record.concern.countyCode }),
+      ...reviewEntries(concernQuestions(state.code), {
+        ...record.concern,
+        county: record.concern.countyCode,
+      }),
     ]),
-    reviewGroup('Contact and receipt', reviewEntries(contactFields, { ...record.contact, ...record.receipt })),
-    reviewGroup('Office details', reviewEntries(state.officeFields[record.requestedOffice ?? 'triage'] ?? [], record.officeDetails)),
+    reviewGroup(
+      'Contact and receipt',
+      reviewEntries(contactFields, { ...record.contact, ...record.receipt }),
+    ),
+    reviewGroup(
+      'Office details',
+      reviewEntries(
+        state.officeFields[record.requestedOffice ?? 'triage'] ?? [],
+        record.officeDetails,
+      ),
+    ),
   );
   const exportButton = node('button', 'button secondary', 'Download JSON');
   exportButton.type = 'button';
@@ -90,20 +120,31 @@ function caseDetail({ record, handoff }: CaseDetails) {
     node('p', 'section-intro', handoff.instruction),
   );
   if (handoff.fields.length) {
-    delivery.body.append(reviewGroup('Available fields', handoff.fields.map(({ label, value }) => [label, value])));
+    delivery.body.append(
+      reviewGroup(
+        'Available fields',
+        handoff.fields.map(({ label, value }) => [label, value]),
+      ),
+    );
   }
   if (handoff.output) {
     const output = handoff.output;
-    delivery.body.append(reviewGroup('Output schema', [
-      ['Contract', `${output.id} v${output.version}`],
-      ['Format', output.format.replaceAll('_', ' ')],
-    ]));
-    if (output.missing.length) delivery.body.append(requirementsList('Information to confirm', output.missing));
-    if (output.documents?.length) delivery.body.append(requirementsList('Documents to prepare', output.documents));
+    delivery.body.append(
+      reviewGroup('Output schema', [
+        ['Contract', `${output.id} v${output.version}`],
+        ['Format', output.format.replaceAll('_', ' ')],
+      ]),
+    );
+    if (output.missing.length)
+      delivery.body.append(requirementsList('Information to confirm', output.missing));
+    if (output.documents?.length)
+      delivery.body.append(requirementsList('Documents to prepare', output.documents));
     if (Object.keys(output.schema.properties).length) {
       const button = node('button', 'button secondary', 'Download output preview');
       button.type = 'button';
-      button.addEventListener('click', () => downloadJSON(`ombus-handoff-${record.id}.json`, output));
+      button.addEventListener('click', () =>
+        downloadJSON(`ombus-handoff-${record.id}.json`, output),
+      );
       delivery.body.append(button);
     }
   }
@@ -131,13 +172,19 @@ export async function mountCases(): Promise<void> {
   const status = node('p', 'notice', 'Loading cases…');
   status.setAttribute('role', 'status');
   surface.hidden = false;
-  surface.replaceChildren(title(id ? 'Case details' : 'Cases', 'Local intake records for staff review.'), status);
+  surface.replaceChildren(
+    title(id ? 'Case details' : 'Cases', 'Local intake records for staff review.'),
+    status,
+  );
   try {
     if (id) {
       const details = await getCase(id);
       surface.replaceChildren(
         headingLink('← All cases', '/cases', 'case-back'),
-        title(officeName(details.record.requestedOffice, details.record.stateCode), `${stateProfile(details.record.stateCode).name} · Pending staff review`),
+        title(
+          officeName(details.record.requestedOffice, details.record.stateCode),
+          `${stateProfile(details.record.stateCode).name} · Pending staff review`,
+        ),
         caseDetail(details),
       );
     } else {

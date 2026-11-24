@@ -2,7 +2,12 @@ import { node } from './dom.ts';
 import { searchCounties } from '../features/intake/counties.ts';
 import type { Option } from '../features/intake/model.ts';
 
-export function bindCountyPicker(input: HTMLInputElement, element: HTMLElement, options: Option[], onValue: (value: string) => void): void {
+export function bindCountyPicker(
+  input: HTMLInputElement,
+  element: HTMLElement,
+  options: Option[],
+  onValue: (value: string) => void,
+): void {
   const popup = node('div', 'county-popup');
   const list = node('ul', 'county-list');
   const status = node('p', 'county-status');
@@ -40,14 +45,16 @@ export function bindCountyPicker(input: HTMLInputElement, element: HTMLElement, 
     matches = searchCounties(input.value, options);
     active = -1;
     input.removeAttribute('aria-activedescendant');
-    list.replaceChildren(...matches.map((county, index) => {
-      const item = node('li', '', county.label);
-      item.id = `${list.id}-${county.value}`;
-      item.dataset.match = String(index);
-      item.setAttribute('role', 'option');
-      item.setAttribute('aria-selected', String(input.dataset.selectedCounty === county.value));
-      return item;
-    }));
+    list.replaceChildren(
+      ...matches.map((county, index) => {
+        const item = node('li', '', county.label);
+        item.id = `${list.id}-${county.value}`;
+        item.dataset.match = String(index);
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', String(input.dataset.selectedCounty === county.value));
+        return item;
+      }),
+    );
     list.hidden = !matches.length;
     input.setAttribute('aria-expanded', String(Boolean(matches.length)));
     popup.hidden = false;
@@ -59,7 +66,9 @@ export function bindCountyPicker(input: HTMLInputElement, element: HTMLElement, 
     onValue('');
     show();
   });
-  input.addEventListener('focus', () => { if (!input.dataset.selectedCounty) show(); });
+  input.addEventListener('focus', () => {
+    if (!input.dataset.selectedCounty) show();
+  });
   input.addEventListener('blur', close);
   list.addEventListener('mousedown', (event) => event.preventDefault());
   list.addEventListener('click', (event) => {
@@ -89,4 +98,3 @@ export function bindCountyPicker(input: HTMLInputElement, element: HTMLElement, 
     }
   });
 }
-

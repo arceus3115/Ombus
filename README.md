@@ -59,3 +59,14 @@ npm run typecheck
 npm test
 go test ./...
 ```
+
+### Pre-commit checks
+
+With the project dependencies installed (`npm ci`), install Python 3 and `pre-commit`, then enable and run the hooks from the repository root.
+
+```sh
+pre-commit install --install-hooks
+pre-commit run --all-files
+```
+
+Commits check staged files for formatting, merge conflict markers, invalid data files, and potential secrets. Changes to Go or TypeScript inputs also trigger `go vet` or the TypeScript type checker. If a formatter rewrites a file, review and stage the changes before retrying the commit.

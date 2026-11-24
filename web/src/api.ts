@@ -17,7 +17,10 @@ export type CaseRecord = CaseInput & {
   reviewFlags: string[];
   outputContract?: { id: string; version: number };
 };
-export type CaseSummary = Pick<CaseRecord, 'id' | 'createdAt' | 'requestedOffice' | 'status' | 'reviewFlags'> & {
+export type CaseSummary = Pick<
+  CaseRecord,
+  'id' | 'createdAt' | 'requestedOffice' | 'status' | 'reviewFlags'
+> & {
   topic?: string;
   county?: string;
   stateCode: string;
@@ -50,11 +53,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export const saveCase = (input: CaseInput) => request<CaseDetails>('/api/cases', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(input),
-});
+export const saveCase = (input: CaseInput) =>
+  request<CaseDetails>('/api/cases', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
 export const listCases = () => request<CaseSummary[]>('/api/cases');
 export const getCase = (id: string) => request<CaseDetails>(`/api/cases/${encodeURIComponent(id)}`);
 

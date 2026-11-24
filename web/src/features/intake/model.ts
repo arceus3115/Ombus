@@ -9,7 +9,16 @@ export type Option = { value: string; label: string; description?: string };
 export type Field = {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'select' | 'radio' | 'date' | 'datetime-local' | 'tel' | 'email' | 'county';
+  type:
+    | 'text'
+    | 'textarea'
+    | 'select'
+    | 'radio'
+    | 'date'
+    | 'datetime-local'
+    | 'tel'
+    | 'email'
+    | 'county';
   required?: boolean;
   additional?: boolean;
   options?: Option[];
@@ -45,7 +54,9 @@ export const minnesotaCounties: Option[] = countyConfig.MN;
 export const states = (stateConfig as StateProfile[]).map((state) => ({
   ...state,
   locationFields: state.locationFields.map((field) =>
-    field.type === 'county' ? { ...field, options: field.options ?? countySets[state.countySet ?? ''] ?? [] } : field,
+    field.type === 'county'
+      ? { ...field, options: field.options ?? countySets[state.countySet ?? ''] ?? [] }
+      : field,
   ),
 }));
 export function stateProfile(code = defaultState) {
@@ -69,7 +80,10 @@ export function readFields(fields: readonly Field[], values: Answers) {
   const answers: Answers = {};
   const visible: Field[] = [];
   for (const field of fields) {
-    if (field.when && !Object.entries(field.when).every(([key, options]) => options.includes(answers[key] ?? ''))) {
+    if (
+      field.when &&
+      !Object.entries(field.when).every(([key, options]) => options.includes(answers[key] ?? ''))
+    ) {
       continue;
     }
     visible.push(field);
@@ -83,22 +97,37 @@ export function readFields(fields: readonly Field[], values: Answers) {
 
 export function prepareIntake(draft: IntakeDraft, id: string): CaseInput {
   const state = stateProfile(draft.stateCode);
-  const { county: countyCode, ...concern } = readFields(concernQuestions(state.code), draft.concern).answers;
+  const { county: countyCode, ...concern } = readFields(
+    concernQuestions(state.code),
+    draft.concern,
+  ).answers;
   if (countyCode) {
-    concern.county = state.locationFields.find((field) => field.key === 'county')?.options?.find((county) => county.value === countyCode)?.label;
+    concern.county = state.locationFields
+      .find((field) => field.key === 'county')
+      ?.options?.find((county) => county.value === countyCode)?.label;
     concern.countyCode = countyCode;
   }
   const contactAndReceipt = readFields(contactFields, draft.contact).answers;
   const { receivedVia, receivedAtCentral, ...contact } = contactAndReceipt;
-  const details = readFields(state.officeFields[draft.routing.office ?? ''] ?? [], draft.officeAnswers[draft.routing.office ?? ''] ?? {}).answers;
+  const details = readFields(
+    state.officeFields[draft.routing.office ?? ''] ?? [],
+    draft.officeAnswers[draft.routing.office ?? ''] ?? {},
+  ).answers;
   const hint = suggestRoute(draft.routing.routingHint, state.code);
   return {
     schemaVersion: config.version,
     id,
     stateCode: state.code,
-    requestedOffice: draft.routing.office === 'triage' || !draft.routing.office ? null : draft.routing.office as Office,
+    requestedOffice:
+      draft.routing.office === 'triage' || !draft.routing.office
+        ? null
+        : (draft.routing.office as Office),
     ...(hint && { routingHint: hint.value }),
-    receipt: { receivedVia, receivedAtCentral, timeZone: receivedAtCentral ? state.timeZone : undefined },
+    receipt: {
+      receivedVia,
+      receivedAtCentral,
+      timeZone: receivedAtCentral ? state.timeZone : undefined,
+    },
     concern,
     contact,
     officeDetails: details,
@@ -121,10 +150,18 @@ export function reviewFlags(input: CaseInput): string[] {
   const match = (criteria: Record<string, string[]> | undefined, values: Answers) =>
     Object.entries(criteria ?? {}).every(([key, options]) => options.includes(values[key] ?? ''));
   const rules: ReviewRule[] = config.reviewRules as ReviewRule[];
-  return Array.from(new Set(rules.filter((rule) =>
-    (!rule.state || rule.state === state.code) &&
-    (!rule.office || rule.office === office) &&
-    (!rule.differentSuggestedOffice || (suggested && suggested !== office)) &&
-    match(rule.concern, input.concern) && match(rule.details, input.officeDetails),
-  ).map((rule) => rule.flag)));
+  return Array.from(
+    new Set(
+      rules
+        .filter(
+          (rule) =>
+            (!rule.state || rule.state === state.code) &&
+            (!rule.office || rule.office === office) &&
+            (!rule.differentSuggestedOffice || (suggested && suggested !== office)) &&
+            match(rule.concern, input.concern) &&
+            match(rule.details, input.officeDetails),
+        )
+        .map((rule) => rule.flag),
+    ),
+  );
 }

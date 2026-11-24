@@ -22,4 +22,3 @@ export function reviewGroup(title: string, entries: Entry[], onEdit?: () => void
   section.append(header, list);
   return section;
 }
-

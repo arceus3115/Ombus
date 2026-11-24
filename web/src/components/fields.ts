@@ -3,8 +3,19 @@ import { bindCountyPicker } from './county-picker.ts';
 import type { Answers, Field } from '../features/intake/model.ts';
 
 type FieldControl = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-export type FieldRow = { element: HTMLElement; controls: FieldControl[]; error: HTMLParagraphElement; field: Field; helpIds: string[] };
-export type FieldGroup = { fields: Field[]; values: Answers; rows: FieldRow[]; disclosure?: HTMLDetailsElement };
+export type FieldRow = {
+  element: HTMLElement;
+  controls: FieldControl[];
+  error: HTMLParagraphElement;
+  field: Field;
+  helpIds: string[];
+};
+export type FieldGroup = {
+  fields: Field[];
+  values: Answers;
+  rows: FieldRow[];
+  disclosure?: HTMLDetailsElement;
+};
 
 function createField(field: Field, prefix: string, value?: string): FieldRow {
   const isRadio = field.type === 'radio';
@@ -38,7 +49,8 @@ function createField(field: Field, prefix: string, value?: string): FieldRow {
       const optionLabel = node('label');
       optionLabel.htmlFor = input.id;
       optionLabel.append(node('span', 'choice-title', option.label));
-      if (option.description) optionLabel.append(node('span', 'choice-description', option.description));
+      if (option.description)
+        optionLabel.append(node('span', 'choice-description', option.description));
       choice.append(input, optionLabel);
       choices.append(choice);
       controls.push(input);
@@ -48,7 +60,8 @@ function createField(field: Field, prefix: string, value?: string): FieldRow {
     const controlType = field.type === 'select' || field.type === 'textarea' ? field.type : 'input';
     const input = node(controlType);
     input.id = id;
-    if (input instanceof HTMLInputElement) input.type = field.type === 'county' ? 'text' : field.type;
+    if (input instanceof HTMLInputElement)
+      input.type = field.type === 'county' ? 'text' : field.type;
     if (input instanceof HTMLTextAreaElement) input.rows = field.rows ?? 3;
     if (field.max && !(input instanceof HTMLSelectElement)) input.maxLength = field.max;
     if (input instanceof HTMLSelectElement) {
@@ -84,12 +97,25 @@ export function createGroup(
       onInput();
       if (row.error.textContent && !validationMessage(row)) setError(row, '');
     };
-    if (field.type === 'county') bindCountyPicker(row.controls[0] as HTMLInputElement, row.element, field.options ?? [], setValue);
-    else row.element.addEventListener('input', (event) => setValue((event.target as FieldControl).value));
+    if (field.type === 'county')
+      bindCountyPicker(
+        row.controls[0] as HTMLInputElement,
+        row.element,
+        field.options ?? [],
+        setValue,
+      );
+    else
+      row.element.addEventListener('input', (event) =>
+        setValue((event.target as FieldControl).value),
+      );
     return row;
   });
-  container.replaceChildren(...rows.filter((row) => !row.field.additional).map((row) => row.element));
-  extraContainer?.replaceChildren(...rows.filter((row) => row.field.additional).map((row) => row.element));
+  container.replaceChildren(
+    ...rows.filter((row) => !row.field.additional).map((row) => row.element),
+  );
+  extraContainer?.replaceChildren(
+    ...rows.filter((row) => row.field.additional).map((row) => row.element),
+  );
   return { fields, values, rows, disclosure: extraContainer?.closest('details') ?? undefined };
 }
 
@@ -109,10 +135,14 @@ export function validationMessage(row: FieldRow) {
   if (row.field.type === 'county' && control.value.trim() && !control.dataset.selectedCounty) {
     return 'Select a county from the matches, or clear the search.';
   }
-  if (row.field.required && !row.field.options && !control.value.trim() && !control.validity.badInput) {
+  if (
+    row.field.required &&
+    !row.field.options &&
+    !control.value.trim() &&
+    !control.validity.badInput
+  ) {
     return 'Enter a response for this field.';
   }
   if (control.validity.valueMissing) return 'Choose an option.';
   return control.validity.valid ? '' : control.validationMessage;
 }
-

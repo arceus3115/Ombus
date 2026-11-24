@@ -1,124 +1,159 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
-  <title>New intake | Ombus</title>
-  <script type="module" src="/src/main.ts"></script>
-</head>
-<body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>Ombus</a>
-      <nav class="workspace-nav" aria-label="Workspace">
-        <a id="nav-intake" href="/">New intake</a>
-        <a id="nav-cases" href="/cases">Cases</a>
-      </nav>
-      <p class="preview-label">Local workspace</p>
-    </div>
-  </header>
-
-  <main id="main" class="workspace" tabindex="-1">
-    <noscript><p class="notice">Enable JavaScript to use Ombus.</p></noscript>
-    <div id="case-surface" hidden></div>
-    <div id="intake-surface" hidden>
-      <header class="page-title">
-        <h1>New intake</h1>
-        <p>Record a concern and prepare it for staff review.</p>
-      </header>
-
-      <div class="workspace-grid" id="intake-workspace" hidden>
-        <form id="intake-form" class="card" method="post" autocomplete="off" novalidate>
-          <div class="card-body">
-            <div id="error-summary" class="error-summary" role="alert"></div>
-
-            <section data-step="0" aria-labelledby="concern-heading">
-              <h2 id="concern-heading" tabindex="-1">About the concern</h2>
-              <p class="section-intro">Start with where the issue happened and who needs help.</p>
-              <div class="field state-field">
-                <label for="intake-state">State where the issue happened</label>
-                <select id="intake-state" name="stateCode" required></select>
-              </div>
-              <div id="concern-fields" class="field-stack"></div>
-              <div id="emergency-guidance" class="notice urgent" role="status"></div>
-            </section>
-
-            <section data-step="1" aria-labelledby="contact-heading" hidden>
-              <h2 id="contact-heading" tabindex="-1">Contact and receipt</h2>
-              <p class="section-intro">Record how staff can safely reach the person reporting the concern.</p>
-              <div id="contact-fields" class="field-stack"></div>
-              <details id="contact-more" class="more-info">
-                <summary>Have more info?</summary>
-                <div id="contact-extra-fields" class="field-stack"></div>
-              </details>
-            </section>
-
-            <section data-step="2" aria-labelledby="office-heading" hidden>
-              <h2 id="office-heading" tabindex="-1">Office details</h2>
-              <p class="section-intro">Choose the topic that best fits. Ombus will suggest an office for review.</p>
-              <div id="routing-hint"></div>
-              <div id="routing-suggestion" class="route-suggestion" hidden>
-                <p id="routing-suggestion-text" role="status"></p>
-                <button id="use-suggestion" class="button secondary" type="button">Use suggestion</button>
-              </div>
-              <div id="office-choice"></div>
-              <div id="office-details" class="office-details" hidden>
-                <h3 id="office-details-heading"></h3>
-                <div id="office-fields" class="field-stack"></div>
-                <p id="incident-guidance" class="notice" hidden>Use the <a href="https://mn.gov/omhdd/reporting-death-or-serious-injury/" target="_blank" rel="noopener noreferrer">official OMHDD reporting process (opens in a new tab)</a> to file a required death or serious injury report.</p>
-                <details id="office-more" class="more-info" hidden>
-                  <summary>Have more info?</summary>
-                  <div id="office-extra-fields" class="field-stack"></div>
-                </details>
-              </div>
-            </section>
-
-            <section data-step="3" aria-labelledby="review-heading" hidden>
-              <h2 id="review-heading" tabindex="-1">Review intake</h2>
-              <p class="section-intro">Check the details before saving the case for staff review.</p>
-              <div id="intake-review"></div>
-            </section>
-
-            <section id="intake-complete" aria-labelledby="complete-heading" hidden>
-              <div class="completion-mark" aria-hidden="true">✓</div>
-              <h2 id="complete-heading" tabindex="-1">Received by Ombus</h2>
-              <p class="section-intro">Your intake is in the Ombus staff review queue. Open the case to see the suggested handoff.</p>
-              <p id="record-reference" class="record-reference"></p>
-            </section>
-          </div>
-
-          <footer class="card-footer" id="workflow-actions">
-            <button id="back" class="button secondary" type="button" hidden>Back</button>
-            <button id="continue" class="button primary" type="submit">Continue <span aria-hidden="true">→</span></button>
-          </footer>
-          <footer class="card-footer" id="complete-actions" hidden>
-            <button id="download-record" class="button secondary" type="button">Download JSON</button>
-            <button id="new-intake" class="button secondary" type="button">Start another intake</button>
-            <a id="open-case" class="button primary" href="/cases">Open case</a>
-          </footer>
-        </form>
-
-        <aside class="sidebar" aria-label="Intake progress and help">
-          <nav aria-labelledby="steps-heading">
-            <h2 id="steps-heading" class="sidebar-heading">Intake steps</h2>
-            <ol class="steps" id="steps">
-              <li aria-current="step"><span class="step-index" aria-hidden="true">1</span><span>Concern</span></li>
-              <li><span class="step-index" aria-hidden="true">2</span><span>Contact</span></li>
-              <li><span class="step-index" aria-hidden="true">3</span><span>Office details</span></li>
-              <li><span class="step-index" aria-hidden="true">4</span><span>Review</span></li>
-            </ol>
-          </nav>
-          <div class="sidebar-note">
-            <h2>Use sample information</h2>
-            <p>Drafts stay in this tab. Saving adds the intake to the local case queue.</p>
-          </div>
-          <p class="safety-note">If someone is in immediate danger, <a href="tel:911">call 911</a>.</p>
-        </aside>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'"
+    />
+    <title>New intake | Ombus</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>Ombus</a>
+        <nav class="workspace-nav" aria-label="Workspace">
+          <a id="nav-intake" href="/">New intake</a>
+          <a id="nav-cases" href="/cases">Cases</a>
+        </nav>
+        <p class="preview-label">Local workspace</p>
       </div>
-    </div>
-  </main>
-</body>
+    </header>
+
+    <main id="main" class="workspace" tabindex="-1">
+      <noscript><p class="notice">Enable JavaScript to use Ombus.</p></noscript>
+      <div id="case-surface" hidden></div>
+      <div id="intake-surface" hidden>
+        <header class="page-title">
+          <h1>New intake</h1>
+          <p>Record a concern and prepare it for staff review.</p>
+        </header>
+
+        <div class="workspace-grid" id="intake-workspace" hidden>
+          <form id="intake-form" class="card" method="post" autocomplete="off" novalidate>
+            <div class="card-body">
+              <div id="error-summary" class="error-summary" role="alert"></div>
+
+              <section data-step="0" aria-labelledby="concern-heading">
+                <h2 id="concern-heading" tabindex="-1">About the concern</h2>
+                <p class="section-intro">Start with where the issue happened and who needs help.</p>
+                <div class="field state-field">
+                  <label for="intake-state">State where the issue happened</label>
+                  <select id="intake-state" name="stateCode" required></select>
+                </div>
+                <div id="concern-fields" class="field-stack"></div>
+                <div id="emergency-guidance" class="notice urgent" role="status"></div>
+              </section>
+
+              <section data-step="1" aria-labelledby="contact-heading" hidden>
+                <h2 id="contact-heading" tabindex="-1">Contact and receipt</h2>
+                <p class="section-intro">
+                  Record how staff can safely reach the person reporting the concern.
+                </p>
+                <div id="contact-fields" class="field-stack"></div>
+                <details id="contact-more" class="more-info">
+                  <summary>Have more info?</summary>
+                  <div id="contact-extra-fields" class="field-stack"></div>
+                </details>
+              </section>
+
+              <section data-step="2" aria-labelledby="office-heading" hidden>
+                <h2 id="office-heading" tabindex="-1">Office details</h2>
+                <p class="section-intro">
+                  Choose the topic that best fits. Ombus will suggest an office for review.
+                </p>
+                <div id="routing-hint"></div>
+                <div id="routing-suggestion" class="route-suggestion" hidden>
+                  <p id="routing-suggestion-text" role="status"></p>
+                  <button id="use-suggestion" class="button secondary" type="button">
+                    Use suggestion
+                  </button>
+                </div>
+                <div id="office-choice"></div>
+                <div id="office-details" class="office-details" hidden>
+                  <h3 id="office-details-heading"></h3>
+                  <div id="office-fields" class="field-stack"></div>
+                  <p id="incident-guidance" class="notice" hidden>
+                    Use the
+                    <a
+                      href="https://mn.gov/omhdd/reporting-death-or-serious-injury/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      >official OMHDD reporting process (opens in a new tab)</a
+                    >
+                    to file a required death or serious injury report.
+                  </p>
+                  <details id="office-more" class="more-info" hidden>
+                    <summary>Have more info?</summary>
+                    <div id="office-extra-fields" class="field-stack"></div>
+                  </details>
+                </div>
+              </section>
+
+              <section data-step="3" aria-labelledby="review-heading" hidden>
+                <h2 id="review-heading" tabindex="-1">Review intake</h2>
+                <p class="section-intro">
+                  Check the details before saving the case for staff review.
+                </p>
+                <div id="intake-review"></div>
+              </section>
+
+              <section id="intake-complete" aria-labelledby="complete-heading" hidden>
+                <div class="completion-mark" aria-hidden="true">✓</div>
+                <h2 id="complete-heading" tabindex="-1">Received by Ombus</h2>
+                <p class="section-intro">
+                  Your intake is in the Ombus staff review queue. Open the case to see the suggested
+                  handoff.
+                </p>
+                <p id="record-reference" class="record-reference"></p>
+              </section>
+            </div>
+
+            <footer class="card-footer" id="workflow-actions">
+              <button id="back" class="button secondary" type="button" hidden>Back</button>
+              <button id="continue" class="button primary" type="submit">
+                Continue <span aria-hidden="true">→</span>
+              </button>
+            </footer>
+            <footer class="card-footer" id="complete-actions" hidden>
+              <button id="download-record" class="button secondary" type="button">
+                Download JSON
+              </button>
+              <button id="new-intake" class="button secondary" type="button">
+                Start another intake
+              </button>
+              <a id="open-case" class="button primary" href="/cases">Open case</a>
+            </footer>
+          </form>
+
+          <aside class="sidebar" aria-label="Intake progress and help">
+            <nav aria-labelledby="steps-heading">
+              <h2 id="steps-heading" class="sidebar-heading">Intake steps</h2>
+              <ol class="steps" id="steps">
+                <li aria-current="step">
+                  <span class="step-index" aria-hidden="true">1</span><span>Concern</span>
+                </li>
+                <li><span class="step-index" aria-hidden="true">2</span><span>Contact</span></li>
+                <li>
+                  <span class="step-index" aria-hidden="true">3</span><span>Office details</span>
+                </li>
+                <li><span class="step-index" aria-hidden="true">4</span><span>Review</span></li>
+              </ol>
+            </nav>
+            <div class="sidebar-note">
+              <h2>Use sample information</h2>
+              <p>Drafts stay in this tab. Saving adds the intake to the local case queue.</p>
+            </div>
+            <p class="safety-note">
+              If someone is in immediate danger, <a href="tel:911">call 911</a>.
+            </p>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </body>
 </html>
