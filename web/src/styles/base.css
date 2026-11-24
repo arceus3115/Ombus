@@ -23,7 +23,7 @@
   background: var(--page);
 }
 
-:where(main, section, div, details, button, footer, p, ul, nav)[hidden] {
+:where(main, section, div, details, button, footer, p, ul, nav, a)[hidden] {
   display: none !important;
 }
 :where(input, textarea, select, .button, .choice label, .skip-link) {

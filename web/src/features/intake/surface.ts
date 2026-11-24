@@ -12,7 +12,7 @@ import { downloadCase, saveCase, type CaseRecord } from '../../api.ts';
 import {
   concernQuestions,
   contactFields,
-  defaultState,
+  destinationName,
   prepareIntake,
   readFields,
   reviewFlags,
@@ -30,74 +30,58 @@ export function mountIntake(): void {
   const steps = [...byId('steps').children];
   const summary = byId('error-summary');
   const continueButton = byId<HTMLButtonElement>('continue');
-  const stateSelect = byId<HTMLSelectElement>('intake-state');
-  stateSelect.replaceChildren(...states.map((state) => new Option(state.name, state.code)));
+  const stateField: Field = {
+    key: 'stateCode',
+    label: 'State or territory where the issue happened',
+    type: 'select',
+    required: true,
+    help: 'If the people involved are in different states, choose the state responsible for the services or agency in the concern.',
+    options: states.map(({ code, name }) => ({ value: code, label: name })),
+  };
   let draft: IntakeDraft;
   let requestId: string;
   let step = 0;
   let record: CaseRecord | undefined;
+  let stateGroup: FieldGroup;
   let concernGroup: FieldGroup;
   let contactGroup: FieldGroup;
   let routingHintGroup: FieldGroup;
-  let officeChoiceGroup: FieldGroup;
   let officeGroup: FieldGroup;
 
   function bindOffice() {
-    const state = stateProfile(draft.stateCode);
-    const office = state.offices.find((option) => option.value === draft.routing.office);
-    byId('office-details').hidden = !office;
-    byId('office-details-heading').textContent = office?.label ?? '';
-    byId('office-choice').firstElementChild?.classList.add('office-choice');
+    const hint = suggestRoute(draft.routingHint, draft.stateCode);
+    const fields = hint ? (stateProfile(draft.stateCode).officeFields[hint.office] ?? []) : [];
+    const answers = hint ? (draft.officeAnswers[hint.value] ??= { topic: hint.topic }) : {};
     byId<HTMLDetailsElement>('office-more').open = false;
     officeGroup = createGroup(
       byId('office-fields'),
-      state.officeFields[draft.routing.office ?? ''] ?? [],
-      draft.officeAnswers[draft.routing.office ?? ''] ?? {},
+      fields,
+      answers,
       'details',
       updateVisibility,
       byId('office-extra-fields'),
     );
-    updateSuggestion();
+    byId('office-details').hidden = fields.length === 0;
     updateVisibility();
   }
 
-  function updateSuggestion() {
-    const hint = suggestRoute(draft.routing.routingHint, draft.stateCode);
-    const office = stateProfile(draft.stateCode).offices.find(
-      (item) => item.value === hint?.office,
-    );
-    byId('routing-suggestion').hidden = !office;
-    byId('routing-suggestion-text').textContent = office ? `Suggested route: ${office.label}` : '';
-    byId('use-suggestion').hidden = !office || office.value === draft.routing.office;
-  }
-
-  function applySuggestion(focus = false) {
-    const hint = suggestRoute(draft.routing.routingHint, draft.stateCode);
-    if (!hint) {
-      updateSuggestion();
-      return;
-    }
-    if (hint.topic) draft.officeAnswers[hint.office].topic = hint.topic;
-    const control = byId<HTMLInputElement>(`route-office-${hint.office}`);
-    if (control.checked) bindOffice();
-    else control.click();
-    if (focus) control.focus();
-  }
-
   function updateVisibility() {
-    for (const [index, group] of [
-      concernGroup,
-      contactGroup,
-      routingHintGroup,
-      officeChoiceGroup,
-      officeGroup,
-    ].entries()) {
+    const hint = suggestRoute(draft.routingHint, draft.stateCode);
+    const groups = [
+      [stateGroup, 0],
+      [concernGroup, 0],
+      [contactGroup, 1],
+      [routingHintGroup, 2],
+      [officeGroup, 2],
+    ] as const;
+    for (const [group, groupStep] of groups) {
       if (!group) continue;
       const { visible } = readFields(group.fields, group.values);
-      const groupStep = Math.min(index, 2);
       if (group.disclosure) group.disclosure.hidden = !visible.some((field) => field.additional);
       for (const row of group.rows) {
-        const show = visible.includes(row.field);
+        const show =
+          visible.includes(row.field) &&
+          !(group === officeGroup && row.field.key === 'topic' && hint?.topic);
         row.element.hidden = !show;
         for (const control of row.controls) control.disabled = !show || step !== groupStep;
         if (!show) setError(row, '');
@@ -111,14 +95,14 @@ export function mountIntake(): void {
     const incidentType = readFields(officeGroup?.fields ?? [], officeGroup?.values ?? {}).answers
       .incidentType;
     byId('incident-guidance').hidden =
-      draft.routing.office !== 'omhdd' || !['death', 'serious_injury'].includes(incidentType ?? '');
+      hint?.office !== 'omhdd' || !['death', 'serious_injury'].includes(incidentType ?? '');
   }
 
   function validateStep() {
     const entries = [
-      concernGroup.rows,
+      [...stateGroup.rows, ...concernGroup.rows],
       contactGroup.rows,
-      [...routingHintGroup.rows, ...officeChoiceGroup.rows, ...officeGroup.rows],
+      [...routingHintGroup.rows, ...officeGroup.rows],
     ][step];
     const invalidRows: FieldRow[] = [];
     for (const row of entries) {
@@ -170,6 +154,9 @@ export function mountIntake(): void {
 
   function renderReview() {
     const review = byId('intake-review');
+    const input = prepareIntake(draft, requestId);
+    const flags = reviewFlags(input);
+    const hint = suggestRoute(draft.routingHint, draft.stateCode);
     review.replaceChildren(
       reviewGroup(
         'Concern',
@@ -185,38 +172,34 @@ export function mountIntake(): void {
         () => moveTo(1),
       ),
       reviewGroup(
-        'Office details',
+        'Topic and destination',
         [
           ...reviewEntries(routingHintGroup.fields, routingHintGroup.values),
-          ...reviewEntries(officeChoiceGroup.fields, officeChoiceGroup.values),
-          ...reviewEntries(officeGroup.fields, officeGroup.values),
+          ['Destination', destinationName(input, flags)],
+          ...reviewEntries(
+            officeGroup.fields,
+            officeGroup.values,
+            hint?.topic ? 'topic' : undefined,
+          ),
         ],
         () => moveTo(2),
       ),
     );
-    const flags = reviewFlags(prepareIntake(draft, requestId));
     if (flags.length) review.append(displayFlags(flags));
   }
 
   function buildStateQuestions() {
-    const state = stateProfile(draft.stateCode);
+    const state = draft.stateCode ? stateProfile(draft.stateCode) : undefined;
     const routingHint: Field = {
       key: 'routingHint',
       label: 'What is the concern mainly about?',
       type: 'select',
-      options: state.routingHints,
-    };
-    const officeChoice: Field = {
-      key: 'office',
-      label: 'Office for staff review',
-      type: 'radio',
       required: true,
-      options: state.offices,
+      options: state?.routingHints ?? [],
     };
-    draft.officeAnswers = Object.fromEntries(state.offices.map(({ value }) => [value, {}]));
     concernGroup = createGroup(
       byId('concern-fields'),
-      concernQuestions(state.code),
+      concernQuestions(state?.code ?? null),
       draft.concern,
       'concern',
       updateVisibility,
@@ -224,27 +207,23 @@ export function mountIntake(): void {
     routingHintGroup = createGroup(
       byId('routing-hint'),
       [routingHint],
-      draft.routing,
+      { routingHint: draft.routingHint },
       'route',
-      () => applySuggestion(),
-    );
-    officeChoiceGroup = createGroup(
-      byId('office-choice'),
-      [officeChoice],
-      draft.routing,
-      'route',
-      bindOffice,
+      () => {
+        draft.routingHint = routingHintGroup.values.routingHint;
+        bindOffice();
+      },
     );
     bindOffice();
   }
 
   function startIntake(focus: boolean) {
-    draft = { stateCode: defaultState, concern: {}, contact: {}, routing: {}, officeAnswers: {} };
-    stateSelect.value = defaultState;
+    draft = { concern: {}, contact: {}, officeAnswers: {} };
     record = undefined;
     requestId = crypto.randomUUID();
     byId('intake-review').replaceChildren();
     byId('record-reference').textContent = '';
+    byId('contact-office').hidden = true;
     byId<HTMLDetailsElement>('contact-more').open = false;
     contactGroup = createGroup(
       byId('contact-fields'),
@@ -254,6 +233,19 @@ export function mountIntake(): void {
       updateVisibility,
       byId('contact-extra-fields'),
     );
+    stateGroup = createGroup(byId('state-field'), [stateField], {}, 'intake', () => {
+      const nextState = stateGroup.values.stateCode || undefined;
+      if (nextState === draft.stateCode) return;
+      if (draft.stateCode) {
+        for (const field of stateProfile(draft.stateCode).locationFields)
+          delete draft.concern[field.key];
+      }
+      draft.stateCode = nextState;
+      draft.routingHint = undefined;
+      draft.officeAnswers = {};
+      summary.textContent = '';
+      buildStateQuestions();
+    });
     buildStateQuestions();
     byId('intake-workspace').hidden = false;
     moveTo(0, focus);
@@ -269,7 +261,24 @@ export function mountIntake(): void {
         const saved = await saveCase(prepareIntake(draft, requestId));
         record = saved.record;
         byId('record-reference').textContent = `Case ID ${record.id}`;
-        byId<HTMLAnchorElement>('open-case').href = `/cases?id=${record.id}`;
+        byId('completed-destination').textContent =
+          saved.handoff.output?.format === 'public_referral'
+            ? saved.handoff.title
+            : destinationName(record, record.reviewFlags);
+        const officeLink = byId<HTMLAnchorElement>('contact-office');
+        if (saved.handoff.sourceUrl) {
+          officeLink.href = saved.handoff.sourceUrl;
+          officeLink.hidden = false;
+          byId('completion-message').textContent =
+            'Ombus saved your intake for staff review. To reach the office directly, use its published contact instructions.';
+        } else {
+          byId('completion-message').textContent =
+            'Ombus saved your intake so staff can find the right office.';
+        }
+        const openCase = byId<HTMLAnchorElement>('open-case');
+        openCase.href = `/cases?id=${record.id}`;
+        openCase.classList.toggle('primary', !saved.handoff.sourceUrl);
+        openCase.classList.toggle('secondary', Boolean(saved.handoff.sourceUrl));
         moveTo(4);
       } catch (error) {
         continueButton.textContent = 'Submit to Ombus';
@@ -288,15 +297,6 @@ export function mountIntake(): void {
   });
   byId('back').addEventListener('click', () => {
     if (!continueButton.disabled) moveTo(step - 1);
-  });
-  byId('use-suggestion').addEventListener('click', () => applySuggestion(true));
-  stateSelect.addEventListener('change', () => {
-    for (const field of stateProfile(draft.stateCode).locationFields)
-      delete draft.concern[field.key];
-    draft.stateCode = stateSelect.value;
-    draft.routing = {};
-    summary.textContent = '';
-    buildStateQuestions();
   });
   byId('download-record').addEventListener('click', () => {
     if (record) downloadCase(record);

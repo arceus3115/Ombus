@@ -182,7 +182,7 @@
 }
 
 @media (min-width: 39rem) {
-  .field:not(.office-choice) > .choices {
+  .field > .choices {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .choice label {

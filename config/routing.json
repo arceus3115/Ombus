@@ -1,0 +1,314 @@
+{
+  "schemaVersion": 2,
+  "longTermCareDirectory": "https://theconsumervoice.org/single-location/",
+  "jurisdictions": [
+    {"code": "AL", "name": "Alabama"},
+    {"code": "AK", "name": "Alaska"},
+    {"code": "AZ", "name": "Arizona"},
+    {"code": "AR", "name": "Arkansas"},
+    {"code": "CA", "name": "California", "longTermCareUrl": "https://aging.ca.gov/Programs_and_Services/Long-Term_Care_Ombudsman/"},
+    {"code": "CO", "name": "Colorado"},
+    {"code": "CT", "name": "Connecticut"},
+    {"code": "DE", "name": "Delaware"},
+    {"code": "DC", "name": "District of Columbia"},
+    {"code": "FL", "name": "Florida"},
+    {"code": "GA", "name": "Georgia"},
+    {"code": "GU", "name": "Guam"},
+    {"code": "HI", "name": "Hawaii"},
+    {"code": "ID", "name": "Idaho"},
+    {"code": "IL", "name": "Illinois"},
+    {"code": "IN", "name": "Indiana"},
+    {"code": "IA", "name": "Iowa"},
+    {"code": "KS", "name": "Kansas"},
+    {"code": "KY", "name": "Kentucky"},
+    {"code": "LA", "name": "Louisiana"},
+    {"code": "ME", "name": "Maine"},
+    {"code": "MD", "name": "Maryland"},
+    {"code": "MA", "name": "Massachusetts"},
+    {"code": "MI", "name": "Michigan"},
+    {"code": "MN", "name": "Minnesota"},
+    {"code": "MS", "name": "Mississippi"},
+    {"code": "MO", "name": "Missouri"},
+    {"code": "MT", "name": "Montana"},
+    {"code": "NE", "name": "Nebraska"},
+    {"code": "NV", "name": "Nevada"},
+    {"code": "NH", "name": "New Hampshire"},
+    {"code": "NJ", "name": "New Jersey"},
+    {"code": "NM", "name": "New Mexico"},
+    {"code": "NY", "name": "New York"},
+    {"code": "NC", "name": "North Carolina"},
+    {"code": "ND", "name": "North Dakota"},
+    {"code": "OH", "name": "Ohio"},
+    {"code": "OK", "name": "Oklahoma"},
+    {"code": "OR", "name": "Oregon"},
+    {"code": "PA", "name": "Pennsylvania"},
+    {"code": "PR", "name": "Puerto Rico"},
+    {"code": "RI", "name": "Rhode Island"},
+    {"code": "SC", "name": "South Carolina"},
+    {"code": "SD", "name": "South Dakota"},
+    {"code": "TN", "name": "Tennessee"},
+    {"code": "TX", "name": "Texas", "longTermCareUrl": "https://ltco.texas.gov/"},
+    {"code": "UT", "name": "Utah"},
+    {"code": "VT", "name": "Vermont"},
+    {"code": "VA", "name": "Virginia"},
+    {"code": "WA", "name": "Washington", "longTermCareUrl": "https://www.waombudsman.org/"},
+    {"code": "WV", "name": "West Virginia"},
+    {"code": "WI", "name": "Wisconsin"},
+    {"code": "WY", "name": "Wyoming"}
+  ],
+  "longTermCareByCounty": {
+    "CA": {
+      "countySet": "CA",
+      "directory": "https://aging.ca.gov/Find_Services_in_My_County/My_County/?cc=",
+      "codes": {
+        "06001": "ALA",
+        "06003": "ALP",
+        "06005": "AMA",
+        "06007": "BUT",
+        "06009": "CAL",
+        "06011": "COL",
+        "06013": "CC",
+        "06015": "DN",
+        "06017": "ED",
+        "06019": "FRE",
+        "06021": "GLE",
+        "06023": "HUM",
+        "06025": "IMP",
+        "06027": "INY",
+        "06029": "KER",
+        "06031": "KIN",
+        "06033": "LAK",
+        "06035": "LAS",
+        "06037": "LA",
+        "06039": "MAD",
+        "06041": "MRN",
+        "06043": "MPA",
+        "06045": "MEN",
+        "06047": "MER",
+        "06049": "MOD",
+        "06051": "MNO",
+        "06053": "MON",
+        "06055": "NAP",
+        "06057": "NEV",
+        "06059": "ORA",
+        "06061": "PLA",
+        "06063": "PLU",
+        "06065": "RIV",
+        "06067": "SAC",
+        "06069": "SBT",
+        "06071": "SBD",
+        "06073": "SD",
+        "06075": "SF",
+        "06077": "SJ",
+        "06079": "SLO",
+        "06081": "SM",
+        "06083": "SB",
+        "06085": "SCL",
+        "06087": "SCR",
+        "06089": "SHA",
+        "06091": "SIE",
+        "06093": "SIS",
+        "06095": "SOL",
+        "06097": "SON",
+        "06099": "STA",
+        "06101": "SUT",
+        "06103": "TEH",
+        "06105": "TRI",
+        "06107": "TUL",
+        "06109": "TUO",
+        "06111": "VEN",
+        "06113": "YOL",
+        "06115": "YUB"
+      }
+    }
+  },
+  "countyField": {
+    "key": "county",
+    "label": "County where the issue happened",
+    "type": "county",
+    "help": "Select a county if known. Ombus can use it to find a local office."
+  },
+  "topics": [
+    {"value": "resident_rights", "label": "Care or rights in a long-term care setting"},
+    {"value": "facility_notice", "label": "Long-term care discharge, transfer, or termination"},
+    {"value": "client_services", "label": "Mental health or disability services"},
+    {"value": "access_or_billing", "label": "Medicaid or public managed care health plan"},
+    {"value": "foster_care", "label": "Foster care or child welfare"},
+    {"value": "education", "label": "K–12 public school concern"},
+    {"value": "corrections", "label": "State prison or corrections concern"},
+    {"value": "government", "label": "Conduct or service of a state agency"},
+    {"value": "unsure", "label": "Something else, more than one concern, or not sure"}
+  ],
+  "locationFields": [
+    {
+      "key": "serviceLocation",
+      "label": "County or city where the issue happened",
+      "type": "text",
+      "max": 100
+    }
+  ],
+  "triageFields": [
+    {
+      "key": "routingNotes",
+      "label": "Anything else that could help us find the right office?",
+      "type": "textarea",
+      "max": 1500,
+      "help": "For example, which program was involved or whom you already contacted."
+    }
+  ],
+  "longTermCareFields": [
+    {
+      "key": "setting",
+      "label": "Where does the person receive care?",
+      "type": "select",
+      "required": true,
+      "options": [
+        {
+          "value": "nursing",
+          "label": "Nursing home"
+        },
+        {
+          "value": "assisted",
+          "label": "Assisted living, board and care, or a similar residential setting"
+        },
+        {
+          "value": "other",
+          "label": "Home or another setting"
+        },
+        {
+          "value": "unknown",
+          "label": "Not sure"
+        }
+      ]
+    },
+    {
+      "key": "provider",
+      "label": "Facility or provider name",
+      "type": "text",
+      "max": 160
+    }
+  ],
+  "referrals": [
+    {
+      "state": "AK",
+      "office": "ak_state",
+      "label": "Alaska State Ombudsman",
+      "sourceUrl": "https://ombud.alaska.gov/file-a-complaint/",
+      "version": 1,
+      "topics": [
+        {
+          "value": "government",
+          "label": "A complaint about an Alaska state agency"
+        }
+      ]
+    },
+    {
+      "state": "CA",
+      "office": "ca_medi_cal",
+      "label": "Medi-Cal Managed Care and Mental Health Office of the Ombudsman",
+      "sourceUrl": "https://www.dhcs.ca.gov/services/mental-health-services-division-default/medi-cal-managed-care-and-mental-health-office-of-the-ombudsman/",
+      "version": 1,
+      "topics": [
+        {
+          "value": "access_or_billing",
+          "label": "Medi-Cal managed care health plan"
+        },
+        {
+          "value": "ca_medi_cal_mental_health",
+          "label": "Medi-Cal mental health services"
+        }
+      ]
+    },
+    {
+      "state": "CA",
+      "office": "ca_foster_care",
+      "label": "California Office of the Foster Care Ombudsperson",
+      "sourceUrl": "https://fosteryouthhelp.ca.gov/file-a-complaint/",
+      "version": 1,
+      "topics": [
+        {
+          "value": "foster_care",
+          "label": "Rights, care, or placement in California foster care"
+        }
+      ]
+    },
+    {
+      "state": "MN",
+      "office": "mn_foster_youth",
+      "label": "Minnesota Office of the Foster Youth Ombudsperson",
+      "sourceUrl": "https://mn.gov/oofy/complaint/file-complaint.jsp",
+      "version": 1,
+      "topics": [
+        {
+          "value": "foster_care",
+          "label": "Rights, safety, or services in Minnesota foster care"
+        }
+      ]
+    },
+    {
+      "state": "TX",
+      "office": "tx_medicaid",
+      "label": "Texas Ombudsman for Managed Care Assistance",
+      "sourceUrl": "https://www.hhs.texas.gov/contact/complaints-appeals/hhs-office-ombudsman/ombudsman-managed-care-help",
+      "version": 1,
+      "topics": [
+        {
+          "value": "access_or_billing",
+          "label": "Texas Medicaid managed care health plan"
+        }
+      ]
+    },
+    {
+      "state": "TX",
+      "office": "tx_foster_care",
+      "label": "Texas Foster Care Ombudsman",
+      "sourceUrl": "https://hhs.texas.gov/about-hhs/your-rights/office-ombudsman",
+      "version": 1,
+      "topics": [
+        {
+          "value": "foster_care",
+          "label": "Texas foster care concern for a young person age 17 or younger"
+        }
+      ]
+    },
+    {
+      "state": "WA",
+      "office": "wa_family_childrens",
+      "label": "Washington Office of the Family and Children’s Ombuds",
+      "sourceUrl": "https://ofco.wa.gov/filing-complaint",
+      "version": 1,
+      "topics": [
+        {
+          "value": "foster_care",
+          "label": "Washington agency action in child protection or foster care"
+        }
+      ]
+    },
+    {
+      "state": "WA",
+      "office": "wa_education",
+      "label": "Washington Office of the Education Ombuds",
+      "sourceUrl": "https://www.oeo.wa.gov/en/get-our-help",
+      "version": 1,
+      "topics": [
+        {
+          "value": "education",
+          "label": "Washington K–12 public school concern"
+        }
+      ]
+    },
+    {
+      "state": "WA",
+      "office": "wa_corrections",
+      "label": "Washington Office of the Corrections Ombuds",
+      "sourceUrl": "https://oco.wa.gov/contact/",
+      "version": 1,
+      "topics": [
+        {
+          "value": "corrections",
+          "label": "Washington state prison or reentry center concern"
+        }
+      ]
+    }
+  ]
+}

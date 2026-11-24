@@ -30,7 +30,7 @@
       <div id="intake-surface" hidden>
         <header class="page-title">
           <h1>New intake</h1>
-          <p>Record a concern and prepare it for staff review.</p>
+          <p>Tell us where the issue happened and what you need help with.</p>
         </header>
 
         <div class="workspace-grid" id="intake-workspace" hidden>
@@ -41,10 +41,7 @@
               <section data-step="0" aria-labelledby="concern-heading">
                 <h2 id="concern-heading" tabindex="-1">About the concern</h2>
                 <p class="section-intro">Start with where the issue happened and who needs help.</p>
-                <div class="field state-field">
-                  <label for="intake-state">State where the issue happened</label>
-                  <select id="intake-state" name="stateCode" required></select>
-                </div>
+                <div id="state-field" class="state-field"></div>
                 <div id="concern-fields" class="field-stack"></div>
                 <div id="emergency-guidance" class="notice urgent" role="status"></div>
               </section>
@@ -62,20 +59,14 @@
               </section>
 
               <section data-step="2" aria-labelledby="office-heading" hidden>
-                <h2 id="office-heading" tabindex="-1">Office details</h2>
+                <h2 id="office-heading" tabindex="-1">Find the right office</h2>
                 <p class="section-intro">
-                  Choose the topic that best fits. Ombus will suggest an office for review.
+                  Choose the topic that best fits. Ombus uses it with your location to find the
+                  right office.
                 </p>
                 <div id="routing-hint"></div>
-                <div id="routing-suggestion" class="route-suggestion" hidden>
-                  <p id="routing-suggestion-text" role="status"></p>
-                  <button id="use-suggestion" class="button secondary" type="button">
-                    Use suggestion
-                  </button>
-                </div>
-                <div id="office-choice"></div>
                 <div id="office-details" class="office-details" hidden>
-                  <h3 id="office-details-heading"></h3>
+                  <h3>A few more details</h3>
                   <div id="office-fields" class="field-stack"></div>
                   <p id="incident-guidance" class="notice" hidden>
                     Use the
@@ -105,10 +96,8 @@
               <section id="intake-complete" aria-labelledby="complete-heading" hidden>
                 <div class="completion-mark" aria-hidden="true">✓</div>
                 <h2 id="complete-heading" tabindex="-1">Received by Ombus</h2>
-                <p class="section-intro">
-                  Your intake is in the Ombus staff review queue. Open the case to see the suggested
-                  handoff.
-                </p>
+                <p id="completion-message" class="section-intro"></p>
+                <p id="completed-destination"></p>
                 <p id="record-reference" class="record-reference"></p>
               </section>
             </div>
@@ -126,7 +115,15 @@
               <button id="new-intake" class="button secondary" type="button">
                 Start another intake
               </button>
-              <a id="open-case" class="button primary" href="/cases">Open case</a>
+              <a id="open-case" class="button secondary" href="/cases">Open case</a>
+              <a
+                id="contact-office"
+                class="button primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                hidden
+                >Find contact instructions (new tab)</a
+              >
             </footer>
           </form>
 
@@ -138,9 +135,7 @@
                   <span class="step-index" aria-hidden="true">1</span><span>Concern</span>
                 </li>
                 <li><span class="step-index" aria-hidden="true">2</span><span>Contact</span></li>
-                <li>
-                  <span class="step-index" aria-hidden="true">3</span><span>Office details</span>
-                </li>
+                <li><span class="step-index" aria-hidden="true">3</span><span>Routing</span></li>
                 <li><span class="step-index" aria-hidden="true">4</span><span>Review</span></li>
               </ol>
             </nav>

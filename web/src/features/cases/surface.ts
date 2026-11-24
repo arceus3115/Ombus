@@ -9,7 +9,13 @@ import {
 import { byId, headingLink, node } from '../../components/dom.ts';
 import { displayFlags } from '../../components/status.ts';
 import { reviewGroup } from '../../components/review.ts';
-import { concernQuestions, contactFields, stateProfile } from '../intake/model.ts';
+import {
+  concernQuestions,
+  contactFields,
+  destinationName,
+  stateProfile,
+  suggestRoute,
+} from '../intake/model.ts';
 import { reviewEntries } from '../intake/review-entries.ts';
 
 const dateTime = new Intl.DateTimeFormat('en-US', {
@@ -17,13 +23,6 @@ const dateTime = new Intl.DateTimeFormat('en-US', {
   timeStyle: 'short',
   timeZone: 'America/Chicago',
 });
-
-function officeName(office: CaseSummary['requestedOffice'], stateCode?: string): string {
-  return (
-    stateProfile(stateCode).offices.find((item) => item.value === (office ?? 'triage'))?.label ??
-    'Staff review'
-  );
-}
 
 function title(heading: string, description: string) {
   const header = node('header', 'page-title');
@@ -56,7 +55,7 @@ function caseList(cases: CaseSummary[]) {
     const link = headingLink('', `/cases?id=${encodeURIComponent(record.id)}`, 'case-item');
     const information = node('div');
     information.append(
-      node('strong', '', officeName(record.requestedOffice, record.stateCode)),
+      node('strong', '', destinationName(record, record.reviewFlags)),
       node(
         'p',
         'case-description',
@@ -80,6 +79,7 @@ function caseList(cases: CaseSummary[]) {
 
 function caseDetail({ record, handoff }: CaseDetails) {
   const state = stateProfile(record.stateCode);
+  const topic = suggestRoute(record.routingHint, state.code);
   const grid = node('div', 'case-grid');
   const saved = card();
   const heading = node('h2', 'case-card-heading', 'Intake record');
@@ -97,13 +97,20 @@ function caseDetail({ record, handoff }: CaseDetails) {
       'Contact and receipt',
       reviewEntries(contactFields, { ...record.contact, ...record.receipt }),
     ),
-    reviewGroup(
-      'Office details',
-      reviewEntries(
+    reviewGroup('Topic and destination', [
+      ...(topic ? [['Topic', topic.label] as [string, string]] : []),
+      [
+        'Destination',
+        handoff.output?.format === 'public_referral'
+          ? handoff.title
+          : destinationName(record, record.reviewFlags),
+      ],
+      ...reviewEntries(
         state.officeFields[record.requestedOffice ?? 'triage'] ?? [],
         record.officeDetails,
+        topic?.topic === record.officeDetails.topic ? 'topic' : undefined,
       ),
-    ),
+    ]),
   );
   const exportButton = node('button', 'button secondary', 'Download JSON');
   exportButton.type = 'button';
@@ -127,7 +134,7 @@ function caseDetail({ record, handoff }: CaseDetails) {
       ),
     );
   }
-  if (handoff.output) {
+  if (handoff.output && handoff.output.format !== 'public_referral') {
     const output = handoff.output;
     delivery.body.append(
       reviewGroup('Output schema', [
@@ -149,7 +156,11 @@ function caseDetail({ record, handoff }: CaseDetails) {
     }
   }
   if (handoff.sourceUrl) {
-    const link = headingLink('Official instructions', handoff.sourceUrl, 'button secondary');
+    const link = headingLink(
+      'Find contact instructions (new tab)',
+      handoff.sourceUrl,
+      'button secondary',
+    );
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     delivery.body.append(link);
@@ -182,7 +193,7 @@ export async function mountCases(): Promise<void> {
       surface.replaceChildren(
         headingLink('← All cases', '/cases', 'case-back'),
         title(
-          officeName(details.record.requestedOffice, details.record.stateCode),
+          destinationName(details.record, details.record.reviewFlags),
           `${stateProfile(details.record.stateCode).name} · Pending staff review`,
         ),
         caseDetail(details),

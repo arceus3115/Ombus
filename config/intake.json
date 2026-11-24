@@ -5,6 +5,7 @@
     {"flag":"time_sensitive","concern":{"urgency":["time_sensitive"]}},
     {"flag":"time_sensitive","state":"MN","office":"managed_care","details":{"urgentService":["yes"]}},
     {"flag":"routing_review","office":"triage"},
+    {"flag":"routing_review","office":"long_term_care","details":{"setting":["other","unknown"]}},
     {"flag":"routing_review","state":"WI","office":"wi_boaltc","details":{"ageBand":["under_60","unknown"]}},
     {"flag":"routing_review","state":"WI","office":"wi_boaltc","details":{"setting":["other","unknown"]}},
     {"flag":"routing_review","state":"MN","office":"managed_care","details":{"program":["other"]}},

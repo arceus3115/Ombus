@@ -1,29 +1,9 @@
-#office-choice .choice-title {
-  font-weight: 660;
-}
-#office-choice .choice label {
-  padding-block: 0.78rem;
-}
 #routing-hint {
   margin-block-end: 1.2rem;
 }
 .state-field {
   margin-block-end: 1.25rem;
 }
-.route-suggestion {
-  display: flex;
-  gap: 0.7rem 1rem;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  margin-block: -0.4rem 1.25rem;
-  padding: 0.65rem 0.8rem;
-  background: var(--accent-soft);
-  color: var(--accent-dark);
-  border-radius: 0.5rem;
-  font-weight: 650;
-}
-
 .office-details {
   margin-block-start: 1.5rem;
   padding-block-start: 1.35rem;

@@ -13,6 +13,7 @@ type rule struct {
 	Office  string              `json:"office"`
 	Retired bool                `json:"retired,omitempty"`
 	When    map[string][]string `json:"when"`
+	Concern map[string][]string `json:"concern"`
 	Output  outputContract      `json:"output"`
 	Handoff
 }
@@ -118,6 +119,14 @@ func (s Schema) Summary(record Record) Summary {
 			break
 		}
 	}
+	if summary.Topic == "" {
+		for _, hint := range state.RoutingHints {
+			if hint.Value == record.RoutingHint {
+				summary.Topic = hint.Label
+				break
+			}
+		}
+	}
 	return summary
 }
 
@@ -137,7 +146,7 @@ func (s Schema) handoffRule(record Record, stateCode string) *rule {
 			}
 			continue
 		}
-		if !route.Retired && matches(route.When, record.OfficeDetails) {
+		if !route.Retired && matches(route.Concern, record.Concern) && matches(route.When, record.OfficeDetails) {
 			return route
 		}
 	}
@@ -248,6 +257,8 @@ func (s Schema) validateHandoffs() error {
 			if err != nil || link.Scheme != "https" || link.Host == "" || link.User != nil {
 				return fmt.Errorf("invalid source link for output contract %q", ref.ID)
 			}
+		} else if route.Output.Format == "public_referral" {
+			return fmt.Errorf("missing source link for output contract %q", ref.ID)
 		}
 		fields := map[string]bool{}
 		for _, field := range route.Output.Fields {

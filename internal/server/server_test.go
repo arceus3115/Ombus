@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -60,6 +61,94 @@ func sampleIntake(office *string) intake.Input {
 		ID: testID, SchemaVersion: 1, RequestedOffice: office,
 		Concern: intake.Values{"relationship": "self", "summary": "Fictional summary", "urgency": "routine"},
 		Contact: intake.Values{"contactMethod": "none"},
+	}
+}
+
+func TestPublicIntakeRoutesLongTermCareInEveryState(t *testing.T) {
+	handler, _ := workspace(t)
+	states := strings.Fields("AL AK AZ AR CA CO CT DE DC FL GA GU HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA PR RI SC SD TN TX UT VT VA WA WV WI WY")
+	for i, state := range states {
+		t.Run(state, func(t *testing.T) {
+			input := sampleIntake(nil)
+			input.ID = fmt.Sprintf("00000000-0000-4000-8000-%012d", i+1)
+			input.SchemaVersion = 2
+			input.StateCode = state
+			input.RoutingHint = "resident_rights"
+			input.OfficeDetails = intake.Values{"setting": "nursing", "ageBand": "60_plus"}
+			response := call(t, handler, http.MethodPost, "/api/cases", input)
+			expect(t, response, http.StatusCreated)
+			var result intake.Details
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if result.Record.RequestedOffice == nil || !strings.HasPrefix(result.Handoff.SourceURL, "https://") || result.Handoff.Output == nil {
+				t.Fatalf("missing long-term care handoff: %+v", result.Handoff)
+			}
+			if result.Handoff.Output.Format == "public_referral" && len(result.Handoff.Output.Values) != 0 {
+				t.Fatalf("referral unexpectedly contains case data: %+v", result.Handoff.Output.Values)
+			}
+		})
+	}
+}
+
+func TestPublicIntakeSelectsVerifiedDestinations(t *testing.T) {
+	for _, tc := range []struct {
+		name, state, topic, county, setting, title, link string
+	}{
+		{"county", "CA", "resident_rights", "06037", "nursing", "Los Angeles County Long-Term Care Ombudsman", "?cc=LA"},
+		{"statewide", "CA", "resident_rights", "", "assisted", "California Long-Term Care Ombudsman", "aging.ca.gov/Programs_and_Services"},
+		{"out of scope", "CA", "resident_rights", "06037", "other", "Internal routing review", ""},
+		{"unknown program", "NE", "education", "", "", "Internal routing review", ""},
+		{"unclear concern", "WA", "unsure", "", "", "Internal routing review", ""},
+		{"verified program", "WA", "education", "", "", "Washington Office of the Education Ombuds", "oeo.wa.gov"},
+		{"directory", "NE", "facility_notice", "", "nursing", "Nebraska Long-Term Care Ombudsman", "/single-location/nebraska/"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler, reopen := workspace(t)
+			wrongOffice := "omhdd"
+			input := sampleIntake(&wrongOffice)
+			input.SchemaVersion, input.StateCode, input.RoutingHint = 2, tc.state, tc.topic
+			input.Concern["countyCode"] = tc.county
+			input.OfficeDetails = intake.Values{"setting": tc.setting, "topic": "monitoring"}
+			response := call(t, handler, http.MethodPost, "/api/cases", input)
+			expect(t, response, http.StatusCreated)
+			var result intake.Details
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if result.Handoff.Title != tc.title || (tc.link == "" && result.Handoff.SourceURL != "") || !strings.Contains(result.Handoff.SourceURL, tc.link) {
+				t.Fatalf("unexpected handoff: %+v", result.Handoff)
+			}
+			handler = reopen()
+			stored := call(t, handler, http.MethodGet, "/api/cases/"+testID, nil)
+			expect(t, stored, http.StatusOK)
+			if !bytes.Equal(stored.Body.Bytes(), response.Body.Bytes()) {
+				t.Fatal("saved handoff changed after reopening")
+			}
+			expect(t, call(t, handler, http.MethodPost, "/api/cases", input), http.StatusOK)
+		})
+	}
+}
+
+func TestPublicIntakeRequiresLocationAndTopicAndDerivesPilotBranch(t *testing.T) {
+	handler, _ := workspace(t)
+	wrongOffice := "omhdd"
+	input := sampleIntake(&wrongOffice)
+	input.SchemaVersion = 2
+	input.RoutingHint = "facility_notice"
+	expect(t, call(t, handler, http.MethodPost, "/api/cases", input), http.StatusUnprocessableEntity)
+	input.StateCode, input.RoutingHint = "MN", "not_a_topic"
+	expect(t, call(t, handler, http.MethodPost, "/api/cases", input), http.StatusUnprocessableEntity)
+	input.RoutingHint = "facility_notice"
+	input.OfficeDetails = intake.Values{"topic": "monitoring", "noticeType": "nursing_discharge_transfer", "incidentType": "death"}
+	response := call(t, handler, http.MethodPost, "/api/cases", input)
+	expect(t, response, http.StatusCreated)
+	var result intake.Details
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Handoff.Title != "Nursing facility transfer or discharge notice" || result.Record.OfficeDetails["topic"] != "notice" || result.Record.OfficeDetails["incidentType"] != "" {
+		t.Fatalf("unexpected intake: %+v", result)
 	}
 }
 

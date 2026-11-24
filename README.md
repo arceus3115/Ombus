@@ -1,6 +1,6 @@
 # Ombus
 
-Ombus is a local ombudsman intake workspace. It includes Minnesota’s three pilot offices and an experimental Wisconsin long-term care route.
+Ombus is a local ombudsman intake workspace. It uses the location and topic of a concern to find a program, ask relevant follow-up questions, and save an intake for staff review.
 
 ## Run locally
 
@@ -40,17 +40,25 @@ Use fictional or de-identified information. The server binds to loopback and sto
 
 The browser sends versioned JSON to `POST /api/cases`. Go validates the active questions, removes answers from inactive branches, and saves the intake as pending staff review. Retrying an identical request returns the original record. `GET /api/cases` provides queue metadata, and `GET /api/cases/{id}` returns the saved record and its handoff preview.
 
-## Multi-state routing experiment
+## Nationwide routing
 
-In **New intake**, choose Minnesota or Wisconsin, then select **Long-term care services or resident rights** under **Office Details**. The same topic selects each state’s long-term care office. Wisconsin asks about age band and care setting. Unsure or potentially out-of-scope answers route to staff review. On a saved case, inspect **Output schema** and download a preview containing the generated JSON Schema, mapped data, and missing information. [Minnesota workflow research](docs/minnesota-ombudsman-workflows.md), [Wisconsin program guidance](https://boaltc.wi.gov/Pages/Ombudsman.aspx)
+In **New intake**, choose where the issue happened and what it concerns. The portal shows only the follow-up questions for that route. Review shows the destination, and the receipt offers a link to the program’s public contact instructions when there is a match. Unclear topics, unverified programs, and answers that put an intake outside the configured jurisdiction go to staff routing review.
 
-| Configuration unit | What it controls |
+| Coverage | Current behavior |
 | --- | --- |
-| **State** | `config/states.json` defines participating offices, location questions, and the default time zone. `config/counties.json` provides reusable county lists by code. |
-| **Office topic** | `routingHints` maps a topic within a state to an office and its initial issue type. `officeFields` supplies follow-up questions. `config/intake.json` contains shared questions and review flags. |
-| **Output schema** | `config/handoffs.json` maps state, office, and issue to a versioned contract. It defines the channel, permitted fields, required alternatives, and documents to prepare. Put specific rules before an office’s fallback. Keep retired versions for saved cases and set `retired` to `true` when a version stops accepting new intakes. |
+| Long-term care | All 50 states, Washington, DC, Puerto Rico, and Guam have a statewide program or state-filtered directory route. California also routes to county contacts using the selected county. [Federal program coverage](https://acl.gov/programs/Protecting-Rights-and-Preventing-Abuse/Long-term-Care-Ombudsman-Program), [State program directory](https://theconsumervoice.org/get-help/), [California county contacts](https://aging.ca.gov/Find_Services_in_My_County/) |
+| Pilot workflows | Minnesota’s long-term care, mental health and developmental disabilities, and public managed care workflows and Wisconsin’s long-term care workflow retain their specific questions and versioned handoff previews. [Minnesota workflow research](docs/minnesota-ombudsman-workflows.md), [Wisconsin program guidance](https://boaltc.wi.gov/Pages/Ombudsman.aspx) |
+| Specialized programs | The catalog includes verified public contact paths for selected state agency, managed care, foster care, K–12 education, and corrections programs in Alaska, California, Minnesota, Texas, and Washington. Each route carries its program’s published link. Other jurisdiction and topic combinations enter staff routing review. |
 
-A submission here creates an Ombus receipt and staff review case. The output preview models what staff would prepare for the agency’s published channel. Public rollout would separate resident submission and status from restricted staff review, add an approved delivery integration per office, and track the agency’s acknowledgement separately from the Ombus receipt. [Wisconsin complaint channels](https://boaltc.wi.gov/Pages/Ombudsman/DisputeResolution.aspx), [Minnesota County ID Standard](https://mn.gov/mngeo/assets/MN_GAC_County_ID_Standard_tcm1235-754089.pdf)
+### Add or update coverage
+
+1. Identify the program from a government agency or the designated program’s own published instructions. Record the jurisdiction, what it covers, exceptions, and the public intake link. Use the state whose services, facility, plan, or agency the concern involves when the reporter is elsewhere. If two offices might apply, collect the detail that distinguishes them or send the intake to staff review.
+2. Reuse a topic in `config/routing.json` when possible. Add the jurisdiction, stable office ID, label, source URL, and matched topics to `referrals`. A program can narrow its topic wording and declare follow-up `fields`. To select an existing branch of those fields, set the topic mapping’s `topic` value. The server derives the office and branch for v2 submissions. Existing v1 cases keep their saved workflow.
+3. For location-specific long-term care, use `longTermCareByCounty` with a county set from `config/counties.json` and verified codes from the state program. A matching county takes precedence over the statewide route. Areas with service boundaries finer than county need an additional verified location criterion or a statewide contact path. [Census California county codes](https://tigerweb.geo.census.gov/tigerwebmain/Files/acs26/tigerweb_acs26_county_ca.html), [California program service areas](https://aging.ca.gov/Providers_and_Partners/Long-Term_Care_Ombudsman/Providers_List/)
+4. Add eligibility or ambiguity rules in `config/intake.json`. For office-specific packets, add versioned mappings in `config/handoffs.json`, with specific rules before the fallback. The Minnesota and Wisconsin profiles in `config/states.json` show how to define more involved workflows. Keep old output contract versions available for existing case records.
+5. Verify a case that should match, one that should go to staff review, and any county or program boundary. Run the verification commands after changes to the registry. Review published contacts periodically so links and jurisdiction rules stay current.
+
+A submission creates a local Ombus receipt. The user can continue through the program’s published contact channel, and staff can use an office-specific output preview where one is configured. Direct agency submission requires an approved delivery integration, a way to record disclosure authorization, and separate tracking for the agency’s acknowledgement.
 
 ## Verify
 

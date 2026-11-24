@@ -8,9 +8,9 @@
       {"key":"county","label":"Minnesota county","type":"county","help":"Search and select the county where the person receives services, if known."}
     ],
     "offices": [
-      {"value":"ooltc","label":"Long-Term Care","description":"Care, rights, discharge, or transfer in a nursing home, assisted living, or home care setting."},
-      {"value":"omhdd","label":"Mental Health and Developmental Disabilities","description":"Service or rights concerns, guardianship, civil commitment, or reportable incidents."},
-      {"value":"managed_care","label":"Public Managed Health Care","description":"Access, billing, grievances, or benefit decisions for a Medical Assistance or MinnesotaCare managed care plan."},
+      {"value":"ooltc","label":"Minnesota Office of Ombudsman for Long-Term Care"},
+      {"value":"omhdd","label":"Minnesota Office of Ombudsman for Mental Health and Developmental Disabilities"},
+      {"value":"managed_care","label":"Minnesota Ombudsperson for Public Managed Health Care Programs"},
       {"value":"triage","label":"Staff review","description":"Use when the right office is unclear or more than one office may be involved."}
     ],
     "routingHints": [
@@ -24,6 +24,8 @@
       {"value":"access_or_billing","label":"Public managed care coverage, access, or billing","office":"managed_care","topic":"access_or_billing"},
       {"value":"grievance","label":"Public managed care quality or rights grievance","office":"managed_care","topic":"grievance"},
       {"value":"benefit_decision","label":"Public managed care benefit denial, reduction, termination, or appeal","office":"managed_care","topic":"benefit_decision"},
+      {"value":"ltc_information","label":"Information about long-term care rights or services","office":"ooltc","topic":"information"},
+      {"value":"systemic","label":"A program-wide mental health or disability services concern","office":"omhdd","topic":"systemic"},
       {"value":"unsure","label":"Multiple concerns or not sure","office":"triage"}
     ],
     "officeFields": {

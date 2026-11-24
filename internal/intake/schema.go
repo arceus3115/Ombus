@@ -3,6 +3,7 @@ package intake
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/mail"
 	"regexp"
 	"slices"
@@ -32,7 +33,9 @@ type Field struct {
 
 type Hint struct {
 	Value  string `json:"value"`
+	Label  string `json:"label"`
 	Office string `json:"office"`
+	Topic  string `json:"topic"`
 }
 
 type reviewRule struct {
@@ -51,6 +54,7 @@ type Schema struct {
 	ReviewRules   []reviewRule `json:"reviewRules"`
 	states        map[string]stateConfig
 	handoffs      []rule
+	publicVersion int
 }
 
 type stateConfig struct {
@@ -61,6 +65,7 @@ type stateConfig struct {
 	LocationFields []Field            `json:"locationFields"`
 	OfficeFields   map[string][]Field `json:"officeFields"`
 	RoutingHints   []Hint             `json:"routingHints"`
+	legacyHints    []Hint
 }
 
 type Input struct {
@@ -123,6 +128,9 @@ func Load() (Schema, error) {
 	if err := json.Unmarshal(config.Handoffs, &schema.handoffs); err != nil {
 		return Schema{}, fmt.Errorf("handoff configuration: %w", err)
 	}
+	if err := schema.loadRouting(counties); err != nil {
+		return Schema{}, err
+	}
 	if err := schema.validateHandoffs(); err != nil {
 		return Schema{}, err
 	}
@@ -145,31 +153,47 @@ func officeKey(office *string) string {
 }
 
 func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
-	if input.SchemaVersion != s.Version || !ValidID(input.ID) {
+	public := input.SchemaVersion == s.publicVersion
+	if (!public && input.SchemaVersion != s.Version) || !ValidID(input.ID) {
 		return Record{}, fmt.Errorf("invalid record ID or intake schema version")
 	}
 	state, ok := s.state(input.StateCode)
-	if !ok {
+	if !ok || (public && input.StateCode == "") || (!public && state.legacyHints == nil) {
 		return Record{}, fmt.Errorf("choose a supported state")
 	}
+	hints := state.legacyHints
+	if public {
+		hints = state.RoutingHints
+	}
+	var hint Hint
+	if input.RoutingHint != "" {
+		if i := slices.IndexFunc(hints, func(h Hint) bool { return h.Value == input.RoutingHint }); i >= 0 {
+			hint = hints[i]
+		} else {
+			return Record{}, fmt.Errorf("choose a valid topic")
+		}
+	}
 	office := officeKey(input.RequestedOffice)
+	if public {
+		if hint.Value == "" {
+			return Record{}, fmt.Errorf("choose what your concern is about")
+		}
+		office = hint.Office
+		input.RequestedOffice = nil
+		if office != "triage" {
+			input.RequestedOffice = &office
+		}
+		if hint.Topic != "" {
+			details := make(Values, len(input.OfficeDetails)+1)
+			maps.Copy(details, input.OfficeDetails)
+			details["topic"] = hint.Topic
+			input.OfficeDetails = details
+		}
+	}
 	fields, known := state.OfficeFields[office]
 	if !known || (input.RequestedOffice != nil && office == "triage") {
 		return Record{}, fmt.Errorf("choose an office for this state or staff review")
 	}
-	hintOffice := ""
-	if input.RoutingHint != "" {
-		for _, hint := range state.RoutingHints {
-			if hint.Value == input.RoutingHint {
-				hintOffice = hint.Office
-				break
-			}
-		}
-		if hintOffice == "" {
-			return Record{}, fmt.Errorf("invalid routing suggestion")
-		}
-	}
-
 	contactAndReceipt := make(Values, len(input.Contact)+2)
 	for key, value := range input.Contact {
 		contactAndReceipt[key] = value
@@ -187,7 +211,7 @@ func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
 			delete(contact, key)
 		}
 	}
-	if input.Receipt["receivedAtCentral"] != "" {
+	if input.Receipt["receivedAtCentral"] != "" && state.TimeZone != "" {
 		input.Receipt["timeZone"] = state.TimeZone
 	}
 	input.Contact = contact
@@ -222,7 +246,7 @@ func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
 	flags := make([]string, 0)
 	for _, rule := range s.ReviewRules {
 		if (rule.State != "" && rule.State != state.Code) || (rule.Office != "" && rule.Office != office) ||
-			(rule.DifferentSuggestedOffice && (hintOffice == "" || hintOffice == office)) {
+			(rule.DifferentSuggestedOffice && (hint.Office == "" || hint.Office == office)) {
 			continue
 		}
 		if matches(rule.Concern, concern) && matches(rule.Details, details) && !slices.Contains(flags, rule.Flag) {

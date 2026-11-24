@@ -3,11 +3,13 @@ import test from 'node:test';
 import { searchCounties } from './counties.ts';
 import {
   concernQuestions,
+  destinationName,
   minnesotaCounties,
   reviewFlags,
   prepareIntake,
   readFields,
   stateProfile,
+  states,
   suggestRoute,
 } from './model.ts';
 
@@ -36,8 +38,9 @@ test('the county search and export use canonical Minnesota county names and code
   assert.deepEqual(searchCounties('27053'), [{ value: '27053', label: 'Hennepin' }]);
   assert.deepEqual(searchCounties('Imaginary county'), []);
   const draft = {
+    stateCode: 'MN',
     contact: {},
-    routing: { office: 'triage' },
+    routingHint: 'unsure',
     officeAnswers: {},
     concern: { county: '27053' },
   };
@@ -46,31 +49,40 @@ test('the county search and export use canonical Minnesota county names and code
   assert.deepEqual(prepareIntake(draft, id).concern, {});
 });
 
-test('suggestions point to real office topics and preserve an explicit routing override', () => {
+test('topic selection sets the office and the branch of office questions', () => {
   for (const hint of routingHints.filter(({ topic }) => topic)) {
     const topics = officeFields[hint.office].find(({ key }) => key === 'topic')?.options ?? [];
     assert.ok(topics.some(({ value }) => value === hint.topic));
   }
-  assert.equal(suggestRoute('unsure').office, 'triage');
+  assert.equal(suggestRoute('unsure')?.office, 'triage');
   const record = prepareIntake(
     {
+      stateCode: 'MN',
       concern: {},
       contact: {},
-      routing: { office: 'omhdd', routingHint: 'facility_notice' },
-      officeAnswers: {},
+      routingHint: 'facility_notice',
+      officeAnswers: {
+        facility_notice: { topic: 'monitoring', noticeType: 'nursing_discharge_transfer' },
+        incident: { incidentType: 'death' },
+      },
     },
     id,
   );
-  assert.equal(record.requestedOffice, 'omhdd');
+  assert.equal(record.requestedOffice, 'ooltc');
   assert.equal(record.routingHint, 'facility_notice');
-  assert.deepEqual(reviewFlags(record), ['routing_review']);
+  assert.deepEqual(record.officeDetails, {
+    topic: 'notice',
+    noticeType: 'nursing_discharge_transfer',
+  });
+  assert.deepEqual(reviewFlags(record), ['facility_notice_review']);
 });
 
 test('changing from phone to email excludes the number and voicemail preference', () => {
   const record = prepareIntake(
     {
+      stateCode: 'MN',
       concern: {},
-      routing: { office: 'triage' },
+      routingHint: 'unsure',
       officeAnswers: {},
       contact: {
         contactMethod: 'email',
@@ -118,12 +130,17 @@ test('a nursing facility notice excludes an assisted living termination reason',
 test('managed care appeal export retains the dates for the current stage and only the selected office', () => {
   const record = prepareIntake(
     {
+      stateCode: 'MN',
       concern: { urgency: 'routine' },
       contact: { receivedAtCentral: '2026-11-23T10:00' },
-      routing: { office: 'managed_care' },
+      routingHint: 'benefit_decision',
       officeAnswers: {
-        ooltc: { provider: 'Sample facility', topic: 'notice', residentReceiptDate: '2026-11-05' },
-        managed_care: {
+        facility_notice: {
+          provider: 'Sample facility',
+          topic: 'notice',
+          residentReceiptDate: '2026-11-05',
+        },
+        benefit_decision: {
           topic: 'benefit_decision',
           appealStage: 'pending',
           actionNoticeDate: '2026-11-01',
@@ -156,14 +173,42 @@ test('a Wisconsin intake uses Wisconsin location fields and flags an unsure age 
   const input = prepareIntake(
     {
       stateCode: 'WI',
-      routing: { office: 'wi_boaltc', routingHint: 'resident_rights' },
+      routingHint: 'resident_rights',
       concern: { county: '27053', serviceLocation: 'Milwaukee County' },
       contact: {},
-      officeAnswers: { wi_boaltc: { topic: 'complaint', ageBand: 'unknown', setting: 'nursing' } },
+      officeAnswers: { resident_rights: { ageBand: 'unknown', setting: 'nursing' } },
     },
     id,
   );
   assert.equal(input.stateCode, 'WI');
   assert.deepEqual(input.concern, { serviceLocation: 'Milwaukee County' });
   assert.deepEqual(reviewFlags(input), ['routing_review']);
+});
+
+test('every jurisdiction has long-term care routing and an unsure option', () => {
+  assert.equal(new Set(states.map(({ code }) => code)).size, 53);
+  for (const state of states) {
+    assert.notEqual(suggestRoute('resident_rights', state.code)?.office, 'triage');
+    assert.ok(suggestRoute('facility_notice', state.code)?.office);
+    assert.equal(suggestRoute('unsure', state.code)?.office, 'triage');
+  }
+});
+
+test('the destination reflects a verified county or staff review depending on the care setting', () => {
+  const draft = {
+    stateCode: 'CA',
+    routingHint: 'resident_rights',
+    concern: { county: '06037' },
+    contact: {},
+    officeAnswers: { resident_rights: { setting: 'nursing' } },
+  };
+  const intake = prepareIntake(draft, id);
+  assert.deepEqual(intake.concern, { county: 'Los Angeles', countyCode: '06037' });
+  assert.equal(
+    destinationName(intake, reviewFlags(intake)),
+    'Los Angeles County Long-Term Care Ombudsman',
+  );
+  draft.officeAnswers.resident_rights.setting = 'unknown';
+  const uncertain = prepareIntake(draft, id);
+  assert.equal(destinationName(uncertain, reviewFlags(uncertain)), 'Staff routing review');
 });
