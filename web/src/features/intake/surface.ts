@@ -16,9 +16,11 @@ import {
   prepareIntake,
   readFields,
   reviewFlags,
+  resolveRoute,
+  routingQuestion,
+  routingTopics,
   stateProfile,
   states,
-  suggestRoute,
   type Field,
   type IntakeDraft,
 } from './model.ts';
@@ -46,10 +48,37 @@ export function mountIntake(): void {
   let concernGroup: FieldGroup;
   let contactGroup: FieldGroup;
   let routingHintGroup: FieldGroup;
+  let routingQuestionGroup: FieldGroup;
   let officeGroup: FieldGroup;
 
+  function bindRoutingQuestion() {
+    const question = routingQuestion(draft.routingHint, draft.stateCode);
+    const fields: Field[] = question
+      ? [
+          {
+            key: 'routingAnswer',
+            label: question.label,
+            type: 'radio',
+            required: true,
+            options: question.options,
+          },
+        ]
+      : [];
+    routingQuestionGroup = createGroup(
+      byId('routing-question'),
+      fields,
+      { routingAnswer: draft.routingAnswer },
+      'route',
+      () => {
+        draft.routingAnswer = routingQuestionGroup.values.routingAnswer;
+        bindOffice();
+      },
+    );
+    bindOffice();
+  }
+
   function bindOffice() {
-    const hint = suggestRoute(draft.routingHint, draft.stateCode);
+    const hint = resolveRoute(draft.routingHint, draft.stateCode, draft.routingAnswer);
     const fields = hint ? (stateProfile(draft.stateCode).officeFields[hint.office] ?? []) : [];
     const answers = hint ? (draft.officeAnswers[hint.value] ??= { topic: hint.topic }) : {};
     byId<HTMLDetailsElement>('office-more').open = false;
@@ -66,12 +95,13 @@ export function mountIntake(): void {
   }
 
   function updateVisibility() {
-    const hint = suggestRoute(draft.routingHint, draft.stateCode);
+    const hint = resolveRoute(draft.routingHint, draft.stateCode, draft.routingAnswer);
     const groups = [
       [stateGroup, 0],
       [concernGroup, 0],
       [contactGroup, 1],
       [routingHintGroup, 2],
+      [routingQuestionGroup, 2],
       [officeGroup, 2],
     ] as const;
     for (const [group, groupStep] of groups) {
@@ -102,7 +132,7 @@ export function mountIntake(): void {
     const entries = [
       [...stateGroup.rows, ...concernGroup.rows],
       contactGroup.rows,
-      [...routingHintGroup.rows, ...officeGroup.rows],
+      [...routingHintGroup.rows, ...routingQuestionGroup.rows, ...officeGroup.rows],
     ][step];
     const invalidRows: FieldRow[] = [];
     for (const row of entries) {
@@ -156,7 +186,7 @@ export function mountIntake(): void {
     const review = byId('intake-review');
     const input = prepareIntake(draft, requestId);
     const flags = reviewFlags(input);
-    const hint = suggestRoute(draft.routingHint, draft.stateCode);
+    const hint = resolveRoute(draft.routingHint, draft.stateCode, draft.routingAnswer);
     review.replaceChildren(
       reviewGroup(
         'Concern',
@@ -175,6 +205,7 @@ export function mountIntake(): void {
         'Topic and destination',
         [
           ...reviewEntries(routingHintGroup.fields, routingHintGroup.values),
+          ...reviewEntries(routingQuestionGroup.fields, routingQuestionGroup.values),
           ['Destination', destinationName(input, flags)],
           ...reviewEntries(
             officeGroup.fields,
@@ -195,7 +226,7 @@ export function mountIntake(): void {
       label: 'What is the concern mainly about?',
       type: 'select',
       required: true,
-      options: state?.routingHints ?? [],
+      options: state ? routingTopics(state.code) : [],
     };
     concernGroup = createGroup(
       byId('concern-fields'),
@@ -210,11 +241,13 @@ export function mountIntake(): void {
       { routingHint: draft.routingHint },
       'route',
       () => {
+        if (draft.routingHint === routingHintGroup.values.routingHint) return;
         draft.routingHint = routingHintGroup.values.routingHint;
-        bindOffice();
+        draft.routingAnswer = undefined;
+        bindRoutingQuestion();
       },
     );
-    bindOffice();
+    bindRoutingQuestion();
   }
 
   function startIntake(focus: boolean) {
@@ -242,6 +275,7 @@ export function mountIntake(): void {
       }
       draft.stateCode = nextState;
       draft.routingHint = undefined;
+      draft.routingAnswer = undefined;
       draft.officeAnswers = {};
       summary.textContent = '';
       buildStateQuestions();

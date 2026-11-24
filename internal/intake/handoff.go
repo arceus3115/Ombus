@@ -120,9 +120,11 @@ func (s Schema) Summary(record Record) Summary {
 		}
 	}
 	if summary.Topic == "" {
-		for _, hint := range state.RoutingHints {
-			if hint.Value == record.RoutingHint {
-				summary.Topic = hint.Label
+		summary.Topic = findHint(state.RoutingHints, record.RoutingHint).Label
+		question := state.clarifications[record.RoutingHint]
+		for _, option := range question.Options {
+			if option.Value == record.RoutingAnswer {
+				summary.Topic = question.TopicLabel + " · " + option.Label
 				break
 			}
 		}
@@ -254,7 +256,7 @@ func (s Schema) validateHandoffs() error {
 		}
 		if route.SourceURL != "" {
 			link, err := url.Parse(route.SourceURL)
-			if err != nil || link.Scheme != "https" || link.Host == "" || link.User != nil {
+			if err != nil || link.Scheme != "https" || link.Host == "" || link.User != nil || strings.ContainsAny(route.SourceURL, "{}") {
 				return fmt.Errorf("invalid source link for output contract %q", ref.ID)
 			}
 		} else if route.Output.Format == "public_referral" {

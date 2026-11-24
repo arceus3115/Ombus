@@ -33,15 +33,16 @@ export type IntakeDraft = {
   concern: Answers;
   contact: Answers;
   routingHint?: string;
+  routingAnswer?: string;
   officeAnswers: Record<string, Answers>;
 };
 
-type RoutingHint = Option & { office: string; topic?: string };
+type RoutingHint = Option & { office: string; topic?: string; followUpOnly?: boolean };
 type Referral = {
   state: string;
   office: string;
   label: string;
-  topics: (Option & { topic?: string })[];
+  topics: Omit<RoutingHint, 'office'>[];
   fields?: Field[];
 };
 type StateProfile = {
@@ -55,45 +56,66 @@ type StateProfile = {
   officeFields: Record<string, Field[] | undefined>;
 };
 
+type CountyDirectory = { countySet: string; label: string; codes: Record<string, string> };
+type Directory = {
+  office: string;
+  label: string;
+  topics: string[];
+  fields?: Field[];
+  jurisdictions?: string[];
+  counties?: Record<string, CountyDirectory | undefined>;
+};
+type Clarification = {
+  state: string;
+  topic: string;
+  topicLabel: string;
+  label: string;
+  options: (Option & { route: string })[];
+};
+
 export const defaultState = 'MN';
 const countySets: Record<string, Option[] | undefined> = countyConfig;
 export const minnesotaCounties: Option[] = countyConfig.MN;
-const longTermCareOffice = 'long_term_care';
 const profiles = new Map((stateConfig as StateProfile[]).map((state) => [state.code, state]));
 const sharedTopics: Option[] = routingConfig.topics;
 const referrals: Referral[] = routingConfig.referrals;
-const countyDirectories: Record<
-  string,
-  { countySet: string; codes: Record<string, string> } | undefined
-> = routingConfig.longTermCareByCounty;
+const directories = routingConfig.directories as Directory[];
+const clarifications: Clarification[] = routingConfig.clarifications;
 
 export const states: StateProfile[] = routingConfig.jurisdictions.map(({ code, name }) => {
   const state = profiles.get(code);
-  const directory = countyDirectories[code];
-  const offices = state?.offices.slice() ?? [
-    { value: longTermCareOffice, label: `${name} Long-Term Care Ombudsman` },
-    { value: 'triage', label: 'Staff routing review' },
-  ];
+  const offices = state?.offices.slice() ?? [{ value: 'triage', label: 'Staff routing review' }];
   const officeFields: StateProfile['officeFields'] = state
     ? { ...state.officeFields }
-    : {
-        [longTermCareOffice]: routingConfig.longTermCareFields as Field[],
-        triage: routingConfig.triageFields as Field[],
-      };
-  const hints = new Map(
-    (
-      state?.routingHints ?? [
-        { value: 'resident_rights', label: '', office: longTermCareOffice },
-        { value: 'facility_notice', label: '', office: longTermCareOffice },
-      ]
-    ).map((hint) => [hint.value, hint]),
-  );
+    : { triage: routingConfig.triageFields as Field[] };
+  const hints = new Map(state?.routingHints.map((hint) => [hint.value, hint]));
   for (const referral of referrals.filter((entry) => entry.state === code)) {
     offices.push({ value: referral.office, label: referral.label });
     officeFields[referral.office] = referral.fields;
     for (const topic of referral.topics)
       hints.set(topic.value, { ...topic, office: referral.office });
   }
+
+  let countySet = state?.countySet;
+  let locationFields = state?.locationFields.slice();
+  for (const directory of directories) {
+    if (directory.jurisdictions?.length && !directory.jurisdictions.includes(code)) continue;
+    const topics = directory.topics.filter((topic) => !hints.has(topic));
+    if (!topics.length) continue;
+    offices.push({
+      value: directory.office,
+      label: directory.label.replaceAll('{state}', name).replaceAll('{stateCode}', code),
+    });
+    officeFields[directory.office] = directory.fields;
+    for (const topic of topics)
+      hints.set(topic, { value: topic, label: '', office: directory.office });
+    const countyDirectory = directory.counties?.[code];
+    if (countyDirectory && !locationFields?.some((field) => field.type === 'county')) {
+      countySet = countyDirectory.countySet;
+      locationFields = [...(locationFields ?? []), routingConfig.countyField as Field];
+    }
+  }
+
   const routingHints = sharedTopics.map((topic) => {
     const hint = hints.get(topic.value);
     hints.delete(topic.value);
@@ -109,16 +131,9 @@ export const states: StateProfile[] = routingConfig.jurisdictions.map(({ code, n
     routingHints: routingHints.sort(
       (a, b) => Number(a.value === 'unsure') - Number(b.value === 'unsure'),
     ),
-    locationFields: (
-      state?.locationFields ??
-      ((directory ? [routingConfig.countyField] : routingConfig.locationFields) as Field[])
-    ).map((field) =>
+    locationFields: (locationFields ?? (routingConfig.locationFields as Field[])).map((field) =>
       field.type === 'county'
-        ? {
-            ...field,
-            options:
-              field.options ?? countySets[state?.countySet ?? directory?.countySet ?? ''] ?? [],
-          }
+        ? { ...field, options: field.options ?? countySets[countySet ?? ''] ?? [] }
         : field,
     ),
   };
@@ -136,8 +151,31 @@ export function concernQuestions(code: string | null = defaultState): Field[] {
 
 export const contactFields = config.contactFields as Field[];
 
+export function routingQuestion(topic?: string, code?: string) {
+  return clarifications.find((question) => question.state === code && question.topic === topic);
+}
+
+export function routingTopics(code: string): Option[] {
+  return stateProfile(code)
+    .routingHints.filter((hint) => !hint.followUpOnly)
+    .map(({ value, label }) => ({
+      value,
+      label: routingQuestion(value, code)?.topicLabel ?? label,
+    }));
+}
+
 export function suggestRoute(value: string | undefined, code?: string) {
   return value ? stateProfile(code).routingHints.find((hint) => hint.value === value) : undefined;
+}
+
+export function resolveRoute(topic?: string, code?: string, answer?: string) {
+  const question = routingQuestion(topic, code);
+  if (question) {
+    const route = question.options.find((option) => option.value === answer)?.route;
+    return suggestRoute(route, code);
+  }
+  const hint = suggestRoute(topic, code);
+  return answer || hint?.followUpOnly ? undefined : hint;
 }
 
 export function readFields(fields: readonly Field[], values: Answers) {
@@ -162,7 +200,7 @@ export function readFields(fields: readonly Field[], values: Answers) {
 export function prepareIntake(draft: IntakeDraft, id: string): CaseInput {
   if (!draft.stateCode) throw new Error('Choose the state where the issue happened.');
   const state = stateProfile(draft.stateCode);
-  const hint = suggestRoute(draft.routingHint, state.code);
+  const hint = resolveRoute(draft.routingHint, state.code, draft.routingAnswer);
   if (!hint) throw new Error('Choose what your concern is about.');
   const { county: countyCode, ...concern } = readFields(
     concernQuestions(state.code),
@@ -185,7 +223,8 @@ export function prepareIntake(draft: IntakeDraft, id: string): CaseInput {
     id,
     stateCode: state.code,
     requestedOffice: hint.office === 'triage' ? null : hint.office,
-    routingHint: hint.value,
+    routingHint: draft.routingHint,
+    ...(draft.routingAnswer && { routingAnswer: draft.routingAnswer }),
     receipt: {
       receivedVia,
       receivedAtCentral,
@@ -204,14 +243,10 @@ export function destinationName(
   if (flags.includes('routing_review')) return 'Staff routing review';
   const county = input.concern?.county;
   const countyCode = input.concern?.countyCode;
-  if (
-    input.requestedOffice === longTermCareOffice &&
-    input.stateCode &&
-    county &&
-    countyCode &&
-    countyDirectories[input.stateCode]?.codes[countyCode]
-  ) {
-    return `${county} County Long-Term Care Ombudsman`;
+  const directory = directories.find(({ office }) => office === input.requestedOffice);
+  const local = input.stateCode ? directory?.counties?.[input.stateCode] : undefined;
+  if (county && countyCode && local?.codes[countyCode]) {
+    return local.label.replaceAll('{county}', county);
   }
   return (
     stateProfile(input.stateCode).offices.find((office) => office.value === input.requestedOffice)
@@ -231,7 +266,11 @@ type ReviewRule = {
 export function reviewFlags(input: CaseInput): string[] {
   const office = input.requestedOffice ?? 'triage';
   const state = stateProfile(input.stateCode);
-  const suggested = suggestRoute(input.routingHint, state.code)?.office;
+  const suggested = (
+    input.routingAnswer
+      ? resolveRoute(input.routingHint, state.code, input.routingAnswer)
+      : suggestRoute(input.routingHint, state.code)
+  )?.office;
   const match = (criteria: Record<string, string[]> | undefined, values: Answers) =>
     Object.entries(criteria ?? {}).every(([key, options]) => options.includes(values[key] ?? ''));
   const rules: ReviewRule[] = config.reviewRules as ReviewRule[];

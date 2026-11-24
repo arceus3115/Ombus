@@ -71,7 +71,7 @@ func TestPublicIntakeRoutesLongTermCareInEveryState(t *testing.T) {
 		t.Run(state, func(t *testing.T) {
 			input := sampleIntake(nil)
 			input.ID = fmt.Sprintf("00000000-0000-4000-8000-%012d", i+1)
-			input.SchemaVersion = 2
+			input.SchemaVersion = 3
 			input.StateCode = state
 			input.RoutingHint = "resident_rights"
 			input.OfficeDetails = intake.Values{"setting": "nursing", "ageBand": "60_plus"}
@@ -149,6 +149,86 @@ func TestPublicIntakeRequiresLocationAndTopicAndDerivesPilotBranch(t *testing.T)
 	}
 	if result.Handoff.Title != "Nursing facility transfer or discharge notice" || result.Record.OfficeDetails["topic"] != "notice" || result.Record.OfficeDetails["incidentType"] != "" {
 		t.Fatalf("unexpected intake: %+v", result)
+	}
+}
+
+func TestPublicIntakeResolvesOverlappingPrograms(t *testing.T) {
+	for _, tc := range []struct {
+		state, topic, answer, office, source string
+	}{
+		{"MN", "foster_care", "foster_youth", "mn_foster_youth", "mn.gov/oofy/"},
+		{"MN", "foster_care", "active_child_protection", "mn_families", "mn.gov/ombudfam/"},
+		{"MN", "foster_care", "indian_child_welfare", "mn_american_indian_families", "mn.gov/oaif/"},
+		{"MN", "foster_care", "unsure", "", ""},
+		{"TX", "client_services", "supported_living", "tx_supported_living", "sslc-independent-ombudsman.texas.gov"},
+		{"TX", "client_services", "idd_community", "tx_idd", "hhs.texas.gov"},
+		{"OR", "client_services", "", "or_residential_facilities", "oltco.org/rfo/"},
+		{"OR", "access_or_billing", "", "or_medicaid", "oregon.gov/oha/"},
+		{"DC", "education", "", "dc_public_education", "educationombudsman.dc.gov"},
+		{"MI", "corrections", "", "mi_corrections", "council.legislature.mi.gov/Ombudsman/"},
+		{"NE", "government", "", "ne_state", "nebraskalegislature.gov/"},
+		{"NE", "education", "", "", ""},
+	} {
+		t.Run(tc.state+"/"+tc.topic+"/"+tc.answer, func(t *testing.T) {
+			handler, _ := workspace(t)
+			officeFromBrowser := "long_term_care"
+			input := sampleIntake(&officeFromBrowser)
+			input.SchemaVersion, input.StateCode = 3, tc.state
+			input.RoutingHint, input.RoutingAnswer = tc.topic, tc.answer
+			response := call(t, handler, http.MethodPost, "/api/cases", input)
+			expect(t, response, http.StatusCreated)
+			var result intake.Details
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			var office string
+			if result.Record.RequestedOffice != nil {
+				office = *result.Record.RequestedOffice
+			}
+			if office != tc.office || result.Record.RoutingHint != tc.topic || result.Record.RoutingAnswer != tc.answer {
+				t.Fatalf("unexpected resolved route: %+v", result.Record)
+			}
+			if (tc.source == "" && result.Handoff.SourceURL != "") || !strings.Contains(result.Handoff.SourceURL, tc.source) {
+				t.Fatalf("unexpected public handoff: %+v", result.Handoff)
+			}
+		})
+	}
+}
+
+func TestPublicIntakeRequiresAnApplicableRoutingAnswer(t *testing.T) {
+	handler, _ := workspace(t)
+	input := sampleIntake(nil)
+	input.SchemaVersion, input.StateCode, input.RoutingHint = 3, "MN", "foster_care"
+	expect(t, call(t, handler, http.MethodPost, "/api/cases", input), http.StatusUnprocessableEntity)
+	input.RoutingAnswer = "supported_living"
+	expect(t, call(t, handler, http.MethodPost, "/api/cases", input), http.StatusUnprocessableEntity)
+	input.RoutingHint, input.RoutingAnswer = "mn_active_child_protection", ""
+	expect(t, call(t, handler, http.MethodPost, "/api/cases", input), http.StatusUnprocessableEntity)
+	input.StateCode, input.RoutingHint, input.RoutingAnswer = "WA", "education", "active_child_protection"
+	expect(t, call(t, handler, http.MethodPost, "/api/cases", input), http.StatusUnprocessableEntity)
+}
+
+func TestPreviousPublicIntakeKeepsItsRoute(t *testing.T) {
+	for _, tc := range []struct{ state, topic, title string }{
+		{"MN", "foster_care", "Minnesota Office of the Foster Youth Ombudsperson"},
+		{"TX", "client_services", "Internal routing review"},
+		{"OR", "access_or_billing", "Internal routing review"},
+	} {
+		t.Run(tc.state, func(t *testing.T) {
+			handler, _ := workspace(t)
+			input := sampleIntake(nil)
+			input.SchemaVersion, input.StateCode, input.RoutingHint = 2, tc.state, tc.topic
+			response := call(t, handler, http.MethodPost, "/api/cases", input)
+			expect(t, response, http.StatusCreated)
+			var result intake.Details
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if result.Handoff.Title != tc.title {
+				t.Fatalf("previous intake changed routes: %+v", result.Handoff)
+			}
+			expect(t, call(t, handler, http.MethodPost, "/api/cases", input), http.StatusOK)
+		})
 	}
 }
 

@@ -8,6 +8,8 @@ import {
   reviewFlags,
   prepareIntake,
   readFields,
+  resolveRoute,
+  routingTopics,
   stateProfile,
   states,
   suggestRoute,
@@ -211,4 +213,43 @@ test('the destination reflects a verified county or staff review depending on th
   draft.officeAnswers.resident_rights.setting = 'unknown';
   const uncertain = prepareIntake(draft, id);
   assert.equal(destinationName(uncertain, reviewFlags(uncertain)), 'Staff routing review');
+});
+
+test('a shared topic shows one clarifier when Minnesota child welfare offices overlap', () => {
+  const topics = routingTopics('MN');
+  assert.equal(
+    topics.find(({ value }) => value === 'foster_care')?.label,
+    'Foster care or child protection',
+  );
+  assert.ok(!topics.some(({ value }) => value === 'mn_active_child_protection'));
+  assert.equal(resolveRoute('foster_care', 'MN'), undefined);
+  assert.equal(resolveRoute('mn_active_child_protection', 'MN'), undefined);
+  assert.equal(resolveRoute('foster_care', 'MN', 'active_child_protection')?.office, 'mn_families');
+  assert.equal(
+    resolveRoute('foster_care', 'MN', 'indian_child_welfare')?.office,
+    'mn_american_indian_families',
+  );
+  assert.equal(resolveRoute('foster_care', 'MN', 'unsure')?.office, 'triage');
+  assert.equal(resolveRoute('foster_care', 'WA')?.office, 'wa_family_childrens');
+});
+
+test('Texas routes to the program that covers the selected disability services', () => {
+  const draft = {
+    stateCode: 'TX',
+    routingHint: 'client_services',
+    routingAnswer: 'supported_living',
+    concern: {},
+    contact: {},
+    officeAnswers: { unsure: { routingNotes: 'Sample note for staff review' } },
+  };
+  const input = prepareIntake(draft, id);
+  assert.equal(input.requestedOffice, 'tx_supported_living');
+  assert.equal(input.routingHint, 'client_services');
+  assert.equal(input.routingAnswer, 'supported_living');
+  assert.deepEqual(input.officeDetails, {});
+  assert.deepEqual(reviewFlags(input), []);
+  draft.routingAnswer = 'unsure';
+  const uncertain = prepareIntake(draft, id);
+  assert.deepEqual(reviewFlags(uncertain), ['routing_review']);
+  assert.deepEqual(uncertain.officeDetails, { routingNotes: 'Sample note for staff review' });
 });

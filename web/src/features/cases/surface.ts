@@ -13,6 +13,8 @@ import {
   concernQuestions,
   contactFields,
   destinationName,
+  resolveRoute,
+  routingQuestion,
   stateProfile,
   suggestRoute,
 } from '../intake/model.ts';
@@ -80,6 +82,9 @@ function caseList(cases: CaseSummary[]) {
 function caseDetail({ record, handoff }: CaseDetails) {
   const state = stateProfile(record.stateCode);
   const topic = suggestRoute(record.routingHint, state.code);
+  const question = routingQuestion(record.routingHint, state.code);
+  const answer = question?.options.find((option) => option.value === record.routingAnswer);
+  const route = answer ? resolveRoute(record.routingHint, state.code, answer.value) : topic;
   const grid = node('div', 'case-grid');
   const saved = card();
   const heading = node('h2', 'case-card-heading', 'Intake record');
@@ -98,7 +103,10 @@ function caseDetail({ record, handoff }: CaseDetails) {
       reviewEntries(contactFields, { ...record.contact, ...record.receipt }),
     ),
     reviewGroup('Topic and destination', [
-      ...(topic ? [['Topic', topic.label] as [string, string]] : []),
+      ...(topic
+        ? [['Topic', answer && question ? question.topicLabel : topic.label] as [string, string]]
+        : []),
+      ...(answer && question ? [[question.label, answer.label] as [string, string]] : []),
       [
         'Destination',
         handoff.output?.format === 'public_referral'
@@ -108,7 +116,7 @@ function caseDetail({ record, handoff }: CaseDetails) {
       ...reviewEntries(
         state.officeFields[record.requestedOffice ?? 'triage'] ?? [],
         record.officeDetails,
-        topic?.topic === record.officeDetails.topic ? 'topic' : undefined,
+        route?.topic === record.officeDetails.topic ? 'topic' : undefined,
       ),
     ]),
   );

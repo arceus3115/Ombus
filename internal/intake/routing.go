@@ -3,47 +3,79 @@ package intake
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
 	"ombus/config"
 )
 
-const longTermCareOffice = "long_term_care"
+const firstPublicVersion = 2
 
 type routingCatalog struct {
-	SchemaVersion         int                        `json:"schemaVersion"`
-	LongTermCareDirectory string                     `json:"longTermCareDirectory"`
-	Jurisdictions         []jurisdiction             `json:"jurisdictions"`
-	LongTermCareByCounty  map[string]countyDirectory `json:"longTermCareByCounty"`
-	CountyField           Field                      `json:"countyField"`
-	Topics                []Option                   `json:"topics"`
-	LocationFields        []Field                    `json:"locationFields"`
-	TriageFields          []Field                    `json:"triageFields"`
-	LongTermCareFields    []Field                    `json:"longTermCareFields"`
-	Referrals             []referral                 `json:"referrals"`
+	SchemaVersion  int             `json:"schemaVersion"`
+	Jurisdictions  []jurisdiction  `json:"jurisdictions"`
+	Topics         []Option        `json:"topics"`
+	LocationFields []Field         `json:"locationFields"`
+	CountyField    Field           `json:"countyField"`
+	TriageFields   []Field         `json:"triageFields"`
+	Directories    []directory     `json:"directories"`
+	Referrals      []referral      `json:"referrals"`
+	Clarifications []clarification `json:"clarifications"`
 }
 
 type jurisdiction struct {
-	Code            string `json:"code"`
-	Name            string `json:"name"`
-	LongTermCareURL string `json:"longTermCareUrl"`
+	Code string `json:"code"`
+	Name string `json:"name"`
 }
 
 type referral struct {
-	State     string  `json:"state"`
-	Office    string  `json:"office"`
-	Label     string  `json:"label"`
-	SourceURL string  `json:"sourceUrl"`
-	Version   int     `json:"version"`
-	Topics    []Hint  `json:"topics"`
-	Fields    []Field `json:"fields"`
+	State        string  `json:"state"`
+	Office       string  `json:"office"`
+	Label        string  `json:"label"`
+	SourceURL    string  `json:"sourceUrl"`
+	Version      int     `json:"version"`
+	SinceVersion int     `json:"sinceVersion"`
+	Topics       []Hint  `json:"topics"`
+	Fields       []Field `json:"fields"`
+}
+
+type directory struct {
+	Office        string                     `json:"office"`
+	Version       int                        `json:"version"`
+	Label         string                     `json:"label"`
+	Topics        []string                   `json:"topics"`
+	Fields        []Field                    `json:"fields"`
+	Jurisdictions []string                   `json:"jurisdictions"`
+	Contact       contactPage                `json:"contact"`
+	Overrides     map[string]contactPage     `json:"overrides"`
+	Counties      map[string]countyDirectory `json:"counties"`
+}
+
+type contactPage struct {
+	SourceURL   string `json:"sourceUrl"`
+	Channel     string `json:"channel"`
+	Instruction string `json:"instruction"`
 }
 
 type countyDirectory struct {
 	CountySet string            `json:"countySet"`
-	Directory string            `json:"directory"`
+	Label     string            `json:"label"`
+	Contact   contactPage       `json:"contact"`
 	Codes     map[string]string `json:"codes"`
+}
+
+type clarification struct {
+	State      string                `json:"state"`
+	Topic      string                `json:"topic"`
+	TopicLabel string                `json:"topicLabel"`
+	Label      string                `json:"label"`
+	Options    []clarificationOption `json:"options"`
+}
+
+type clarificationOption struct {
+	Option
+	Route string `json:"route"`
 }
 
 func (s *Schema) loadRouting(counties map[string][]Option) error {
@@ -51,81 +83,160 @@ func (s *Schema) loadRouting(counties map[string][]Option) error {
 	if err := json.Unmarshal(config.Routing, &catalog); err != nil {
 		return fmt.Errorf("routing configuration: %w", err)
 	}
-	if catalog.SchemaVersion <= s.Version {
+	if catalog.SchemaVersion < firstPublicVersion {
 		return fmt.Errorf("invalid public intake version %d", catalog.SchemaVersion)
 	}
 	s.publicVersion = catalog.SchemaVersion
-	unconfigured := s.states
+	profiles := s.states
 	s.states = make(map[string]stateConfig, len(catalog.Jurisdictions))
 	for _, region := range catalog.Jurisdictions {
 		if len(region.Code) != 2 || region.Name == "" || s.states[region.Code].Code != "" {
 			return fmt.Errorf("invalid or duplicate jurisdiction %q", region.Code)
 		}
-		state, configured := unconfigured[region.Code]
+		state, configured := profiles[region.Code]
 		if configured {
 			state.legacyHints = slices.Clone(state.RoutingHints)
-			delete(unconfigured, region.Code)
+			delete(profiles, region.Code)
 		} else {
-			countyRoutes, exists := catalog.LongTermCareByCounty[region.Code]
-			if exists {
-				if err := s.addCountyHandoffs(region.Code, countyRoutes, counties[countyRoutes.CountySet]); err != nil {
-					return err
-				}
-				delete(catalog.LongTermCareByCounty, region.Code)
-			}
-			state = s.addLongTermCare(region, catalog)
-			if exists {
-				field := catalog.CountyField
-				field.Options = counties[countyRoutes.CountySet]
-				state.LocationFields = []Field{field}
+			state = stateConfig{
+				Code: region.Code, Name: region.Name,
+				LocationFields: catalog.LocationFields,
+				OfficeFields:   map[string][]Field{"triage": catalog.TriageFields},
 			}
 		}
 		for _, entry := range catalog.Referrals {
 			if entry.State != state.Code {
 				continue
 			}
-			if _, exists := state.OfficeFields[entry.Office]; exists || entry.Office == "" || len(entry.Topics) == 0 {
+			if _, exists := state.OfficeFields[entry.Office]; exists || entry.Office == "" || len(entry.Topics) == 0 || entry.SinceVersion > s.publicVersion {
 				return fmt.Errorf("invalid or duplicate referral office %s/%s", state.Code, entry.Office)
 			}
 			state.OfficeFields[entry.Office] = entry.Fields
 			for _, topic := range entry.Topics {
 				topic.Office = entry.Office
+				topic.sinceVersion = entry.SinceVersion
 				state.RoutingHints = append(state.RoutingHints, topic)
 			}
-			s.handoffs = append(s.handoffs, referralHandoff(entry, "Public office contact", "Use the office’s published contact options to request help."))
+			s.handoffs = append(s.handoffs, referralHandoff(entry.State, entry.Office, entry.Label, entry.Version, contactPage{
+				SourceURL: entry.SourceURL, Channel: "Public office contact",
+				Instruction: "Use the office’s published contact options to request help.",
+			}))
 		}
-		if err := state.completeTopics(catalog.Topics); err != nil {
+		for _, dir := range catalog.Directories {
+			if len(dir.Jurisdictions) != 0 && !slices.Contains(dir.Jurisdictions, state.Code) {
+				continue
+			}
+			if err := s.addDirectory(&state, dir, catalog.CountyField, counties); err != nil {
+				return err
+			}
+		}
+		previous, err := state.completeTopics(catalog.Topics, firstPublicVersion)
+		if err != nil {
+			return err
+		}
+		state.previousPublicHints = previous
+		state.RoutingHints, err = state.completeTopics(catalog.Topics, s.publicVersion)
+		if err != nil {
 			return err
 		}
 		s.states[state.Code] = state
 	}
-	for code := range unconfigured {
+	for code := range profiles {
 		return fmt.Errorf("state profile %q has no jurisdiction", code)
-	}
-	for code := range catalog.LongTermCareByCounty {
-		return fmt.Errorf("county directory %q needs a shared long-term care profile", code)
 	}
 	for _, entry := range catalog.Referrals {
 		if _, ok := s.states[entry.State]; !ok {
 			return fmt.Errorf("referral office %q has unknown jurisdiction %q", entry.Office, entry.State)
 		}
 	}
+	if err := s.validateDirectories(catalog.Directories); err != nil {
+		return err
+	}
+	return s.loadClarifications(catalog.Clarifications)
+}
+
+func (s Schema) validateDirectories(directories []directory) error {
+	seen := map[string]bool{}
+	for _, dir := range directories {
+		if dir.Office == "" || seen[dir.Office] || len(dir.Topics) == 0 {
+			return fmt.Errorf("invalid or duplicate directory %q", dir.Office)
+		}
+		seen[dir.Office] = true
+		for _, code := range dir.Jurisdictions {
+			if _, ok := s.states[code]; !ok {
+				return fmt.Errorf("directory %q has unknown jurisdiction %q", dir.Office, code)
+			}
+		}
+		for code := range dir.Overrides {
+			if _, ok := s.states[code]; !ok || (len(dir.Jurisdictions) != 0 && !slices.Contains(dir.Jurisdictions, code)) {
+				return fmt.Errorf("directory %q has an override outside its jurisdiction %q", dir.Office, code)
+			}
+		}
+		for code := range dir.Counties {
+			if _, ok := s.states[code]; !ok || (len(dir.Jurisdictions) != 0 && !slices.Contains(dir.Jurisdictions, code)) {
+				return fmt.Errorf("directory %q has a county mapping outside its jurisdiction %q", dir.Office, code)
+			}
+		}
+	}
 	return nil
 }
 
-func (s *Schema) addCountyHandoffs(state string, directory countyDirectory, counties []Option) error {
-	if directory.Directory == "" || len(directory.Codes) == 0 || len(counties) == 0 {
-		return fmt.Errorf("incomplete county directory for %s", state)
+func (s *Schema) addDirectory(state *stateConfig, dir directory, countyField Field, counties map[string][]Option) error {
+	if _, exists := state.OfficeFields[dir.Office]; exists {
+		return fmt.Errorf("directory %q duplicates an office in %s", dir.Office, state.Code)
 	}
-	for countyCode, agencyCode := range directory.Codes {
-		i := slices.IndexFunc(counties, func(county Option) bool { return county.Value == countyCode })
-		if i < 0 || agencyCode == "" {
-			return fmt.Errorf("invalid county route %s/%s", state, countyCode)
+	var assigned []Hint
+	for _, topic := range dir.Topics {
+		if !slices.ContainsFunc(state.RoutingHints, func(h Hint) bool { return h.Value == topic && !h.directory && h.sinceVersion <= firstPublicVersion }) {
+			assigned = append(assigned, Hint{Value: topic, Office: dir.Office, directory: true})
 		}
-		route := referralHandoff(referral{
-			State: state, Office: longTermCareOffice, Label: counties[i].Label + " County Long-Term Care Ombudsman",
-			SourceURL: directory.Directory + agencyCode, Version: 1,
-		}, "Local long-term care program", "Use the Long-Term Care Ombudsman contact listed for this county.")
+	}
+	if len(assigned) == 0 {
+		return nil
+	}
+	state.OfficeFields[dir.Office] = dir.Fields
+	state.RoutingHints = append(state.RoutingHints, assigned...)
+	replacements := strings.NewReplacer("{state}", state.Name, "{stateCode}", state.Code,
+		"{stateSlug}", strings.ReplaceAll(strings.ToLower(state.Name), " ", "-"))
+	if local, ok := dir.Counties[state.Code]; ok {
+		countyOptions := counties[local.CountySet]
+		if state.CountySet != "" && state.CountySet != local.CountySet {
+			return fmt.Errorf("conflicting county sets for %s", state.Code)
+		}
+		if err := s.addCountyHandoffs(*state, dir, local, countyOptions); err != nil {
+			return err
+		}
+		if !slices.ContainsFunc(state.LocationFields, func(field Field) bool { return field.Key == countyField.Key }) {
+			countyField.Options = countyOptions
+			state.CountySet = local.CountySet
+			if state.legacyHints == nil {
+				state.LocationFields = nil
+			}
+			state.LocationFields = append(slices.Clone(state.LocationFields), countyField)
+		}
+	}
+	page, overridden := dir.Overrides[state.Code]
+	if !overridden {
+		page = dir.Contact
+	}
+	page.SourceURL = replacements.Replace(page.SourceURL)
+	s.handoffs = append(s.handoffs, referralHandoff(state.Code, dir.Office, replacements.Replace(dir.Label), dir.Version, page))
+	return nil
+}
+
+func (s *Schema) addCountyHandoffs(state stateConfig, dir directory, local countyDirectory, counties []Option) error {
+	if !strings.Contains(local.Contact.SourceURL, "{countyContact}") || len(local.Codes) == 0 || len(counties) == 0 {
+		return fmt.Errorf("incomplete county directory for %s/%s", state.Code, dir.Office)
+	}
+	for countyCode, contactCode := range local.Codes {
+		i := slices.IndexFunc(counties, func(county Option) bool { return county.Value == countyCode })
+		if i < 0 || contactCode == "" {
+			return fmt.Errorf("invalid county route %s/%s", state.Code, countyCode)
+		}
+		page := local.Contact
+		page.SourceURL = strings.ReplaceAll(page.SourceURL, "{countyContact}", url.QueryEscape(contactCode))
+		label := strings.ReplaceAll(local.Label, "{county}", counties[i].Label)
+		route := referralHandoff(state.Code, dir.Office, label, dir.Version, page)
 		route.Concern = map[string][]string{"countyCode": {countyCode}}
 		route.Output.ID += "." + countyCode
 		s.handoffs = append(s.handoffs, route)
@@ -133,46 +244,70 @@ func (s *Schema) addCountyHandoffs(state string, directory countyDirectory, coun
 	return nil
 }
 
-func (s *Schema) addLongTermCare(region jurisdiction, catalog routingCatalog) stateConfig {
-	source := region.LongTermCareURL
-	channel := "State long-term care directory"
-	instruction := "Use the directory for this state to contact the program that serves the facility."
-	if source == "" {
-		source = catalog.LongTermCareDirectory + strings.ReplaceAll(strings.ToLower(region.Name), " ", "-") + "/"
-	} else {
-		channel = "State long-term care program"
-		instruction = "Use the state program’s published instructions to contact the office that serves the facility."
+func (s *Schema) loadClarifications(questions []clarification) error {
+	for _, question := range questions {
+		state, known := s.states[question.State]
+		hint := findHint(state.RoutingHints, question.Topic)
+		if !known || question.Label == "" || question.TopicLabel == "" || len(question.Options) < 2 || state.clarifications[question.Topic].Topic != "" || hint.Value == "" || hint.FollowUpOnly {
+			return fmt.Errorf("invalid or duplicate routing question %s/%s", question.State, question.Topic)
+		}
+		seen := map[string]bool{}
+		hasReview := false
+		for _, option := range question.Options {
+			route := findHint(state.RoutingHints, option.Route)
+			if option.Value == "" || option.Label == "" || seen[option.Value] || route.Value == "" ||
+				(option.Route != question.Topic && route.Office != "triage" && !route.FollowUpOnly) {
+				return fmt.Errorf("invalid routing option %s/%s/%s", question.State, question.Topic, option.Value)
+			}
+			hasReview = hasReview || route.Office == "triage"
+			seen[option.Value] = true
+		}
+		if !hasReview {
+			return fmt.Errorf("no staff review option for %s/%s", question.State, question.Topic)
+		}
+		if state.clarifications == nil {
+			state.clarifications = make(map[string]clarification)
+		}
+		state.clarifications[question.Topic] = question
+		s.states[question.State] = state
 	}
-	s.handoffs = append(s.handoffs, referralHandoff(referral{
-		State: region.Code, Office: longTermCareOffice, Label: region.Name + " Long-Term Care Ombudsman",
-		SourceURL: source, Version: 1,
-	}, channel, instruction))
-	return stateConfig{
-		Code: region.Code, Name: region.Name, LocationFields: catalog.LocationFields,
-		OfficeFields: map[string][]Field{longTermCareOffice: catalog.LongTermCareFields, "triage": catalog.TriageFields},
-		RoutingHints: []Hint{{Value: "resident_rights", Office: longTermCareOffice}, {Value: "facility_notice", Office: longTermCareOffice}},
+	return nil
+}
+
+func findHint(hints []Hint, value string) Hint {
+	for _, hint := range hints {
+		if hint.Value == value {
+			return hint
+		}
 	}
+	return Hint{}
 }
 
 // Shared topics supply the default wording and route to staff if a state has no match.
-func (state *stateConfig) completeTopics(topics []Option) error {
+func (state stateConfig) completeTopics(topics []Option, version int) ([]Hint, error) {
 	byValue := make(map[string]Hint, len(state.RoutingHints))
 	for _, hint := range state.RoutingHints {
+		if hint.sinceVersion > version {
+			continue
+		}
+		if existing, ok := byValue[hint.Value]; ok && hint.directory && !existing.directory {
+			continue
+		}
 		fields, known := state.OfficeFields[hint.Office]
 		if hint.Value == "" || byValue[hint.Value].Value != "" || !known {
-			return fmt.Errorf("invalid or duplicate topic %s/%s", state.Code, hint.Value)
+			return nil, fmt.Errorf("invalid or duplicate topic %s/%s", state.Code, hint.Value)
 		}
 		if hint.Topic != "" && !slices.ContainsFunc(fields, func(field Field) bool {
 			return field.Key == "topic" && slices.ContainsFunc(field.Options, func(option Option) bool { return option.Value == hint.Topic })
 		}) {
-			return fmt.Errorf("invalid follow-up topic %s/%s", state.Code, hint.Value)
+			return nil, fmt.Errorf("invalid follow-up topic %s/%s", state.Code, hint.Value)
 		}
 		byValue[hint.Value] = hint
 	}
 	assigned := make([]Hint, 0, len(topics)+len(byValue))
 	for _, topic := range topics {
 		if topic.Value == "" || topic.Label == "" || slices.ContainsFunc(assigned, func(h Hint) bool { return h.Value == topic.Value }) {
-			return fmt.Errorf("invalid or duplicate shared topic %q", topic.Value)
+			return nil, fmt.Errorf("invalid or duplicate shared topic %q", topic.Value)
 		}
 		hint, matched := byValue[topic.Value]
 		if !matched {
@@ -185,23 +320,22 @@ func (state *stateConfig) completeTopics(topics []Option) error {
 		delete(byValue, topic.Value)
 	}
 	for _, extra := range state.RoutingHints {
-		if _, remains := byValue[extra.Value]; remains {
+		if hint, remains := byValue[extra.Value]; remains && hint == extra {
 			if extra.Label == "" {
-				return fmt.Errorf("missing topic label for %s/%s", state.Code, extra.Value)
+				return nil, fmt.Errorf("missing topic label for %s/%s", state.Code, extra.Value)
 			}
 			assigned = append(assigned, extra)
 		}
 	}
-	state.RoutingHints = assigned
-	return nil
+	return assigned, nil
 }
 
-func referralHandoff(entry referral, channel, instruction string) rule {
+func referralHandoff(state, office, label string, version int, page contactPage) rule {
 	return rule{
-		State: entry.State, Office: entry.Office,
-		Handoff: Handoff{Title: entry.Label, Channel: channel, Instruction: instruction, SourceURL: entry.SourceURL},
+		State: state, Office: office,
+		Handoff: Handoff{Title: label, Channel: page.Channel, Instruction: page.Instruction, SourceURL: page.SourceURL},
 		Output: outputContract{
-			ContractRef: ContractRef{ID: strings.ToLower(entry.State) + "." + entry.Office + ".referral", Version: entry.Version},
+			ContractRef: ContractRef{ID: strings.ToLower(state) + "." + office + ".referral", Version: version},
 			Format:      "public_referral",
 		},
 	}

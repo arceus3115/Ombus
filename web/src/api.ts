@@ -6,6 +6,7 @@ export type CaseInput = {
   stateCode?: string;
   requestedOffice: Office | null;
   routingHint?: string;
+  routingAnswer?: string;
   receipt: Values;
   concern: Values;
   contact: Values;

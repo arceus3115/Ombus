@@ -32,10 +32,13 @@ type Field struct {
 }
 
 type Hint struct {
-	Value  string `json:"value"`
-	Label  string `json:"label"`
-	Office string `json:"office"`
-	Topic  string `json:"topic"`
+	Value        string `json:"value"`
+	Label        string `json:"label"`
+	Office       string `json:"office"`
+	Topic        string `json:"topic"`
+	FollowUpOnly bool   `json:"followUpOnly"`
+	sinceVersion int
+	directory    bool
 }
 
 type reviewRule struct {
@@ -58,14 +61,16 @@ type Schema struct {
 }
 
 type stateConfig struct {
-	Code           string             `json:"code"`
-	Name           string             `json:"name"`
-	TimeZone       string             `json:"timeZone"`
-	CountySet      string             `json:"countySet"`
-	LocationFields []Field            `json:"locationFields"`
-	OfficeFields   map[string][]Field `json:"officeFields"`
-	RoutingHints   []Hint             `json:"routingHints"`
-	legacyHints    []Hint
+	Code                string             `json:"code"`
+	Name                string             `json:"name"`
+	TimeZone            string             `json:"timeZone"`
+	CountySet           string             `json:"countySet"`
+	LocationFields      []Field            `json:"locationFields"`
+	OfficeFields        map[string][]Field `json:"officeFields"`
+	RoutingHints        []Hint             `json:"routingHints"`
+	legacyHints         []Hint
+	previousPublicHints []Hint
+	clarifications      map[string]clarification
 }
 
 type Input struct {
@@ -74,6 +79,7 @@ type Input struct {
 	StateCode       string  `json:"stateCode,omitempty"`
 	RequestedOffice *string `json:"requestedOffice"`
 	RoutingHint     string  `json:"routingHint,omitempty"`
+	RoutingAnswer   string  `json:"routingAnswer,omitempty"`
 	Receipt         Values  `json:"receipt"`
 	Concern         Values  `json:"concern"`
 	Contact         Values  `json:"contact"`
@@ -153,7 +159,7 @@ func officeKey(office *string) string {
 }
 
 func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
-	public := input.SchemaVersion == s.publicVersion
+	public := input.SchemaVersion == firstPublicVersion || input.SchemaVersion == s.publicVersion
 	if (!public && input.SchemaVersion != s.Version) || !ValidID(input.ID) {
 		return Record{}, fmt.Errorf("invalid record ID or intake schema version")
 	}
@@ -165,13 +171,22 @@ func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
 	if public {
 		hints = state.RoutingHints
 	}
-	var hint Hint
-	if input.RoutingHint != "" {
-		if i := slices.IndexFunc(hints, func(h Hint) bool { return h.Value == input.RoutingHint }); i >= 0 {
-			hint = hints[i]
-		} else {
-			return Record{}, fmt.Errorf("choose a valid topic")
+	if input.SchemaVersion == firstPublicVersion {
+		hints = state.previousPublicHints
+	}
+	hint := findHint(hints, input.RoutingHint)
+	if input.RoutingHint != "" && (hint.Value == "" || hint.FollowUpOnly) {
+		return Record{}, fmt.Errorf("choose a valid topic")
+	}
+	question := state.clarifications[input.RoutingHint]
+	if input.SchemaVersion == s.publicVersion && question.Topic != "" {
+		option := slices.IndexFunc(question.Options, func(option clarificationOption) bool { return option.Value == input.RoutingAnswer })
+		if option < 0 {
+			return Record{}, fmt.Errorf("choose a response to %q", question.Label)
 		}
+		hint = findHint(hints, question.Options[option].Route)
+	} else if input.RoutingAnswer != "" {
+		return Record{}, fmt.Errorf("that routing answer does not apply")
 	}
 	office := officeKey(input.RequestedOffice)
 	if public {

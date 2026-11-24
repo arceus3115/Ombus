@@ -1,12 +1,11 @@
 {
-  "schemaVersion": 2,
-  "longTermCareDirectory": "https://theconsumervoice.org/single-location/",
+  "schemaVersion": 3,
   "jurisdictions": [
     {"code": "AL", "name": "Alabama"},
     {"code": "AK", "name": "Alaska"},
     {"code": "AZ", "name": "Arizona"},
     {"code": "AR", "name": "Arkansas"},
-    {"code": "CA", "name": "California", "longTermCareUrl": "https://aging.ca.gov/Programs_and_Services/Long-Term_Care_Ombudsman/"},
+    {"code": "CA", "name": "California"},
     {"code": "CO", "name": "Colorado"},
     {"code": "CT", "name": "Connecticut"},
     {"code": "DE", "name": "Delaware"},
@@ -47,87 +46,15 @@
     {"code": "SC", "name": "South Carolina"},
     {"code": "SD", "name": "South Dakota"},
     {"code": "TN", "name": "Tennessee"},
-    {"code": "TX", "name": "Texas", "longTermCareUrl": "https://ltco.texas.gov/"},
+    {"code": "TX", "name": "Texas"},
     {"code": "UT", "name": "Utah"},
     {"code": "VT", "name": "Vermont"},
     {"code": "VA", "name": "Virginia"},
-    {"code": "WA", "name": "Washington", "longTermCareUrl": "https://www.waombudsman.org/"},
+    {"code": "WA", "name": "Washington"},
     {"code": "WV", "name": "West Virginia"},
     {"code": "WI", "name": "Wisconsin"},
     {"code": "WY", "name": "Wyoming"}
   ],
-  "longTermCareByCounty": {
-    "CA": {
-      "countySet": "CA",
-      "directory": "https://aging.ca.gov/Find_Services_in_My_County/My_County/?cc=",
-      "codes": {
-        "06001": "ALA",
-        "06003": "ALP",
-        "06005": "AMA",
-        "06007": "BUT",
-        "06009": "CAL",
-        "06011": "COL",
-        "06013": "CC",
-        "06015": "DN",
-        "06017": "ED",
-        "06019": "FRE",
-        "06021": "GLE",
-        "06023": "HUM",
-        "06025": "IMP",
-        "06027": "INY",
-        "06029": "KER",
-        "06031": "KIN",
-        "06033": "LAK",
-        "06035": "LAS",
-        "06037": "LA",
-        "06039": "MAD",
-        "06041": "MRN",
-        "06043": "MPA",
-        "06045": "MEN",
-        "06047": "MER",
-        "06049": "MOD",
-        "06051": "MNO",
-        "06053": "MON",
-        "06055": "NAP",
-        "06057": "NEV",
-        "06059": "ORA",
-        "06061": "PLA",
-        "06063": "PLU",
-        "06065": "RIV",
-        "06067": "SAC",
-        "06069": "SBT",
-        "06071": "SBD",
-        "06073": "SD",
-        "06075": "SF",
-        "06077": "SJ",
-        "06079": "SLO",
-        "06081": "SM",
-        "06083": "SB",
-        "06085": "SCL",
-        "06087": "SCR",
-        "06089": "SHA",
-        "06091": "SIE",
-        "06093": "SIS",
-        "06095": "SOL",
-        "06097": "SON",
-        "06099": "STA",
-        "06101": "SUT",
-        "06103": "TEH",
-        "06105": "TRI",
-        "06107": "TUL",
-        "06109": "TUO",
-        "06111": "VEN",
-        "06113": "YOL",
-        "06115": "YUB"
-      }
-    }
-  },
-  "countyField": {
-    "key": "county",
-    "label": "County where the issue happened",
-    "type": "county",
-    "help": "Select a county if known. Ombus can use it to find a local office."
-  },
   "topics": [
     {"value": "resident_rights", "label": "Care or rights in a long-term care setting"},
     {"value": "facility_notice", "label": "Long-term care discharge, transfer, or termination"},
@@ -147,6 +74,12 @@
       "max": 100
     }
   ],
+  "countyField": {
+    "key": "county",
+    "label": "County where the issue happened",
+    "type": "county",
+    "help": "Select a county if known. Ombus can use it to find a local office."
+  },
   "triageFields": [
     {
       "key": "routingNotes",
@@ -156,36 +89,140 @@
       "help": "For example, which program was involved or whom you already contacted."
     }
   ],
-  "longTermCareFields": [
+  "directories": [
     {
-      "key": "setting",
-      "label": "Where does the person receive care?",
-      "type": "select",
-      "required": true,
-      "options": [
+      "office": "long_term_care",
+      "version": 1,
+      "topics": [
+        "resident_rights",
+        "facility_notice"
+      ],
+      "label": "{state} Long-Term Care Ombudsman",
+      "contact": {
+        "sourceUrl": "https://theconsumervoice.org/single-location/{stateSlug}/",
+        "channel": "State long-term care directory",
+        "instruction": "Use the directory for this state to contact the program that serves the facility."
+      },
+      "overrides": {
+        "CA": {
+          "sourceUrl": "https://aging.ca.gov/Programs_and_Services/Long-Term_Care_Ombudsman/",
+          "channel": "State long-term care program",
+          "instruction": "Use the state program’s published instructions to contact the office that serves the facility."
+        },
+        "TX": {
+          "sourceUrl": "https://ltco.texas.gov/",
+          "channel": "State long-term care program",
+          "instruction": "Use the state program’s published instructions to contact the office that serves the facility."
+        },
+        "WA": {
+          "sourceUrl": "https://www.waombudsman.org/",
+          "channel": "State long-term care program",
+          "instruction": "Use the state program’s published instructions to contact the office that serves the facility."
+        }
+      },
+      "counties": {
+        "CA": {
+          "countySet": "CA",
+          "label": "{county} County Long-Term Care Ombudsman",
+          "contact": {
+            "sourceUrl": "https://aging.ca.gov/Find_Services_in_My_County/My_County/?cc={countyContact}",
+            "channel": "Local long-term care program",
+            "instruction": "Use the Long-Term Care Ombudsman contact listed for this county."
+          },
+          "codes": {
+            "06001": "ALA",
+            "06003": "ALP",
+            "06005": "AMA",
+            "06007": "BUT",
+            "06009": "CAL",
+            "06011": "COL",
+            "06013": "CC",
+            "06015": "DN",
+            "06017": "ED",
+            "06019": "FRE",
+            "06021": "GLE",
+            "06023": "HUM",
+            "06025": "IMP",
+            "06027": "INY",
+            "06029": "KER",
+            "06031": "KIN",
+            "06033": "LAK",
+            "06035": "LAS",
+            "06037": "LA",
+            "06039": "MAD",
+            "06041": "MRN",
+            "06043": "MPA",
+            "06045": "MEN",
+            "06047": "MER",
+            "06049": "MOD",
+            "06051": "MNO",
+            "06053": "MON",
+            "06055": "NAP",
+            "06057": "NEV",
+            "06059": "ORA",
+            "06061": "PLA",
+            "06063": "PLU",
+            "06065": "RIV",
+            "06067": "SAC",
+            "06069": "SBT",
+            "06071": "SBD",
+            "06073": "SD",
+            "06075": "SF",
+            "06077": "SJ",
+            "06079": "SLO",
+            "06081": "SM",
+            "06083": "SB",
+            "06085": "SCL",
+            "06087": "SCR",
+            "06089": "SHA",
+            "06091": "SIE",
+            "06093": "SIS",
+            "06095": "SOL",
+            "06097": "SON",
+            "06099": "STA",
+            "06101": "SUT",
+            "06103": "TEH",
+            "06105": "TRI",
+            "06107": "TUL",
+            "06109": "TUO",
+            "06111": "VEN",
+            "06113": "YOL",
+            "06115": "YUB"
+          }
+        }
+      },
+      "fields": [
         {
-          "value": "nursing",
-          "label": "Nursing home"
+          "key": "setting",
+          "label": "Where does the person receive care?",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "nursing",
+              "label": "Nursing home"
+            },
+            {
+              "value": "assisted",
+              "label": "Assisted living, board and care, or a similar residential setting"
+            },
+            {
+              "value": "other",
+              "label": "Home or another setting"
+            },
+            {
+              "value": "unknown",
+              "label": "Not sure"
+            }
+          ]
         },
         {
-          "value": "assisted",
-          "label": "Assisted living, board and care, or a similar residential setting"
-        },
-        {
-          "value": "other",
-          "label": "Home or another setting"
-        },
-        {
-          "value": "unknown",
-          "label": "Not sure"
+          "key": "provider",
+          "label": "Facility or provider name",
+          "type": "text",
+          "max": 160
         }
       ]
-    },
-    {
-      "key": "provider",
-      "label": "Facility or provider name",
-      "type": "text",
-      "max": 160
     }
   ],
   "referrals": [
@@ -307,6 +344,328 @@
         {
           "value": "corrections",
           "label": "Washington state prison or reentry center concern"
+        }
+      ]
+    },
+    {
+      "state": "AZ",
+      "office": "az_state",
+      "label": "Arizona Ombudsman–Citizens’ Aide",
+      "sourceUrl": "https://www.azoca.gov/complaint-procedure/complaint-form/",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "government",
+          "label": "An Arizona state agency’s action or service"
+        }
+      ]
+    },
+    {
+      "state": "CO",
+      "office": "co_child_protection",
+      "label": "Child Protection Ombudsman of Colorado",
+      "sourceUrl": "https://coloradocpo.org/contact/",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "foster_care",
+          "label": "Colorado foster care or child protection services"
+        }
+      ]
+    },
+    {
+      "state": "CT",
+      "office": "ct_corrections",
+      "label": "Connecticut Office of Correction Ombudsman",
+      "sourceUrl": "https://portal.ct.gov/correctionsombudsman/about-us",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "corrections",
+          "label": "A Connecticut Department of Correction facility"
+        }
+      ]
+    },
+    {
+      "state": "DC",
+      "office": "dc_public_education",
+      "label": "DC Office of the Ombudsman for Public Education",
+      "sourceUrl": "https://educationombudsman.dc.gov/page/contact-us",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "education",
+          "label": "A District of Columbia public or public charter school"
+        }
+      ]
+    },
+    {
+      "state": "HI",
+      "office": "hi_state",
+      "label": "Hawaii Office of the Ombudsman",
+      "sourceUrl": "https://www.ombudsman.hawaii.gov/got-a-complaint/",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "government",
+          "label": "A Hawaii state or county executive agency"
+        }
+      ]
+    },
+    {
+      "state": "IA",
+      "office": "ia_state",
+      "label": "Iowa Office of Ombudsman",
+      "sourceUrl": "https://ombudsman.iowa.gov/contact-us",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "government",
+          "label": "An Iowa state or local government agency"
+        }
+      ]
+    },
+    {
+      "state": "MA",
+      "office": "ma_child_advocate",
+      "label": "Massachusetts Office of the Child Advocate",
+      "sourceUrl": "https://www.mass.gov/guides/oca-complaint-line",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "foster_care",
+          "label": "Massachusetts foster care or child welfare services"
+        }
+      ]
+    },
+    {
+      "state": "MI",
+      "office": "mi_child_advocate",
+      "label": "Michigan Office of the Child Advocate",
+      "sourceUrl": "https://www.michigan.gov/oca/req_advocacy",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "foster_care",
+          "label": "Michigan foster care, child protection, or adoption services"
+        }
+      ]
+    },
+    {
+      "state": "MI",
+      "office": "mi_corrections",
+      "label": "Michigan Legislative Corrections Ombudsman",
+      "sourceUrl": "https://council.legislature.mi.gov/Ombudsman/Contact",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "corrections",
+          "label": "A Michigan Department of Corrections prison"
+        }
+      ]
+    },
+    {
+      "state": "MN",
+      "office": "mn_families",
+      "label": "Minnesota Office of Ombudsperson for Families",
+      "sourceUrl": "https://mn.gov/ombudfam/get-help/",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "mn_active_child_protection",
+          "label": "How an agency handled an active Minnesota child protection case",
+          "followUpOnly": true
+        }
+      ]
+    },
+    {
+      "state": "MN",
+      "office": "mn_american_indian_families",
+      "label": "Minnesota Office of Ombudsperson for American Indian Families",
+      "sourceUrl": "https://mn.gov/oaif/what-we-do/help/",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "mn_indian_child_welfare",
+          "label": "Child protection or placement for an American Indian or Alaska Native child",
+          "followUpOnly": true
+        }
+      ]
+    },
+    {
+      "state": "MN",
+      "office": "mn_corrections",
+      "label": "Minnesota Office of the Ombuds for Corrections",
+      "sourceUrl": "https://mn.gov/obfc/complaints/",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "corrections",
+          "label": "A Minnesota prison, jail, or other correctional facility"
+        }
+      ]
+    },
+    {
+      "state": "NE",
+      "office": "ne_state",
+      "label": "Nebraska Public Counsel (Ombudsman)",
+      "sourceUrl": "https://www.nebraskalegislature.gov/divisions/ombud-filing.php",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "government",
+          "label": "A Nebraska state agency’s action or service"
+        }
+      ]
+    },
+    {
+      "state": "OR",
+      "office": "or_medicaid",
+      "label": "Oregon Health Authority Ombuds Program",
+      "sourceUrl": "https://www.oregon.gov/oha/ERD/pages/ombuds-program.aspx",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "access_or_billing",
+          "label": "Oregon Health Plan (Medicaid) services"
+        }
+      ]
+    },
+    {
+      "state": "OR",
+      "office": "or_foster_care",
+      "label": "Oregon Foster Care Ombuds",
+      "sourceUrl": "https://www.oregon.gov/odhs/about/Pages/foster-care-ombuds.aspx",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "foster_care",
+          "label": "Care or rights for a child in Oregon Department of Human Services custody"
+        }
+      ]
+    },
+    {
+      "state": "TX",
+      "office": "tx_idd",
+      "label": "Texas Health and Human Services IDD Ombudsman",
+      "sourceUrl": "https://www.hhs.texas.gov/contact/complaints-appeals/hhs-office-ombudsman/idd-ombudsman",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "client_services",
+          "label": "Texas Home and Community-based Services, Texas Home Living, or a local IDD authority"
+        }
+      ]
+    },
+    {
+      "state": "TX",
+      "office": "tx_supported_living",
+      "label": "Texas Office of the Independent Ombudsman for State Supported Living Centers",
+      "sourceUrl": "https://sslc-independent-ombudsman.texas.gov/",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "tx_supported_living",
+          "label": "Care, rights, or services at a Texas State Supported Living Center",
+          "followUpOnly": true
+        }
+      ]
+    },
+    {
+      "state": "OR",
+      "office": "or_residential_facilities",
+      "label": "Oregon Residential Facilities Ombudsman",
+      "sourceUrl": "https://oltco.org/rfo/rfo-contact-us.html",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "client_services",
+          "label": "Rights or living conditions in an Oregon home licensed for mental health or developmental disability services"
+        }
+      ]
+    },
+    {
+      "state": "OR",
+      "office": "or_housing",
+      "label": "Oregon Housing and Community Services Ombuds Office",
+      "sourceUrl": "https://www.oregon.gov/ohcs/Pages/ombuds.aspx",
+      "version": 1,
+      "sinceVersion": 3,
+      "topics": [
+        {
+          "value": "or_housing",
+          "label": "An Oregon Housing and Community Services program I applied for or use"
+        }
+      ]
+    }
+  ],
+  "clarifications": [
+    {
+      "state": "MN",
+      "topic": "foster_care",
+      "topicLabel": "Foster care or child protection",
+      "label": "Which part of foster care or child protection is the concern about?",
+      "options": [
+        {
+          "value": "foster_youth",
+          "label": "A young person’s rights, care, or placement in Minnesota foster care",
+          "route": "foster_care"
+        },
+        {
+          "value": "active_child_protection",
+          "label": "How an agency handled an active Minnesota child protection case",
+          "route": "mn_active_child_protection"
+        },
+        {
+          "value": "indian_child_welfare",
+          "label": "Child protection or placement for an American Indian or Alaska Native child",
+          "route": "mn_indian_child_welfare"
+        },
+        {
+          "value": "unsure",
+          "label": "More than one of these, or I’m not sure",
+          "route": "unsure"
+        }
+      ]
+    },
+    {
+      "state": "TX",
+      "topic": "client_services",
+      "topicLabel": "Mental health or disability services",
+      "label": "Which setting or program is involved?",
+      "options": [
+        {
+          "value": "supported_living",
+          "label": "A Texas State Supported Living Center",
+          "route": "tx_supported_living"
+        },
+        {
+          "value": "idd_community",
+          "label": "Texas Home and Community-based Services, Texas Home Living, or a local IDD authority",
+          "route": "client_services"
+        },
+        {
+          "value": "unsure",
+          "label": "Another setting or program, or I’m not sure",
+          "route": "unsure"
         }
       ]
     }
