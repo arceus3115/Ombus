@@ -101,6 +101,7 @@
       "contact": {
         "sourceUrl": "https://theconsumervoice.org/single-location/{stateSlug}/",
         "channel": "State long-term care directory",
+        "directory": true,
         "instruction": "Use the directory for this state to contact the program that serves the facility."
       },
       "overrides": {
@@ -127,6 +128,7 @@
           "contact": {
             "sourceUrl": "https://aging.ca.gov/Find_Services_in_My_County/My_County/?cc={countyContact}",
             "channel": "Local long-term care program",
+            "directory": true,
             "instruction": "Use the Long-Term Care Ombudsman contact listed for this county."
           },
           "codes": {

@@ -26,6 +26,10 @@ func New(schema intake.Schema, cases store.Files, assets string) http.Handler {
 	a := api{schema: schema, store: cases}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/cases", a.create)
+	mux.HandleFunc("POST /api/routing/preview", a.previewRouting)
+	mux.HandleFunc("GET /api/routing/coverage", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, a.schema.Coverage())
+	})
 	mux.HandleFunc("GET /api/cases", a.list)
 	mux.HandleFunc("GET /api/cases/{id}", a.detail)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -60,30 +64,8 @@ func New(schema intake.Schema, cases store.Files, assets string) http.Handler {
 }
 
 func (a api) create(w http.ResponseWriter, r *http.Request) {
-	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if err != nil || contentType != "application/json" {
-		writeError(w, http.StatusUnsupportedMediaType, "Send an application/json intake.")
-		return
-	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 48*1024))
-	decoder.DisallowUnknownFields()
-	var input intake.Input
-	if err := decoder.Decode(&input); err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			writeError(w, http.StatusRequestEntityTooLarge, "This intake is too large.")
-		} else {
-			writeError(w, http.StatusBadRequest, "The intake must be a valid JSON record.")
-		}
-		return
-	}
-	if err := decoder.Decode(new(json.RawMessage)); err != io.EOF {
-		writeError(w, http.StatusBadRequest, "Send a single JSON intake.")
-		return
-	}
-	record, err := a.schema.Prepare(input, time.Now())
-	if err != nil {
-		writeError(w, http.StatusUnprocessableEntity, err.Error())
+	record, ok := a.prepare(w, r)
+	if !ok {
 		return
 	}
 	record, created, err := a.store.Create(record)
@@ -101,6 +83,43 @@ func (a api) create(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Location", fmt.Sprintf("/api/cases/%s", record.ID))
 	writeJSON(w, status, a.schema.Details(record))
+}
+
+func (a api) previewRouting(w http.ResponseWriter, r *http.Request) {
+	record, ok := a.prepare(w, r)
+	if ok {
+		writeJSON(w, http.StatusOK, a.schema.PreviewRouting(record))
+	}
+}
+
+func (a api) prepare(w http.ResponseWriter, r *http.Request) (intake.Record, bool) {
+	contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || contentType != "application/json" {
+		writeError(w, http.StatusUnsupportedMediaType, "Send an application/json intake.")
+		return intake.Record{}, false
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 48*1024))
+	decoder.DisallowUnknownFields()
+	var input intake.Input
+	if err := decoder.Decode(&input); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeError(w, http.StatusRequestEntityTooLarge, "This intake is too large.")
+		} else {
+			writeError(w, http.StatusBadRequest, "The intake must be a valid JSON record.")
+		}
+		return intake.Record{}, false
+	}
+	if err := decoder.Decode(new(json.RawMessage)); err != io.EOF {
+		writeError(w, http.StatusBadRequest, "Send a single JSON intake.")
+		return intake.Record{}, false
+	}
+	record, err := a.schema.Prepare(input, time.Now())
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return intake.Record{}, false
+	}
+	return record, true
 }
 
 func (a api) list(w http.ResponseWriter, r *http.Request) {

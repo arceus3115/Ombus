@@ -25,9 +25,25 @@ export type CaseSummary = Pick<
   topic?: string;
   county?: string;
   stateCode: string;
+  destination: string;
 };
+export type RoutingOutcome = {
+  kind: 'office' | 'program_directory' | 'staff_review' | 'staff_review_with_resource';
+  destination: string;
+  message: string;
+  contact?: {
+    name: string;
+    url: string;
+    linkLabel: string;
+    sourceUrl: string;
+    publisher?: string;
+    reviewedOn?: string;
+  };
+};
+export type RoutingPreview = { routing: RoutingOutcome; reviewFlags: string[] };
 export type CaseDetails = {
   record: CaseRecord;
+  routing: RoutingOutcome;
   handoff: {
     title: string;
     channel: string;
@@ -43,6 +59,7 @@ export type CaseDetails = {
       values: Values;
       missing: string[];
       documents?: string[];
+      draft?: { subject: string; body: string };
     };
   };
 };
@@ -54,12 +71,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export const saveCase = (input: CaseInput) =>
-  request<CaseDetails>('/api/cases', {
+function postIntake<T>(path: string, input: CaseInput) {
+  return request<T>(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
+}
+export const previewRouting = (input: CaseInput) =>
+  postIntake<RoutingPreview>('/api/routing/preview', input);
+export const saveCase = (input: CaseInput) => postIntake<CaseDetails>('/api/cases', input);
 export const listCases = () => request<CaseSummary[]>('/api/cases');
 export const getCase = (id: string) => request<CaseDetails>(`/api/cases/${encodeURIComponent(id)}`);
 
@@ -68,7 +89,11 @@ export function downloadCase(record: CaseRecord): void {
 }
 
 export function downloadJSON(name: string, value: unknown): void {
-  const file = new Blob([JSON.stringify(value, null, 2) + '\n'], { type: 'application/json' });
+  downloadFile(name, JSON.stringify(value, null, 2) + '\n', 'application/json');
+}
+
+export function downloadFile(name: string, value: string, type = 'text/plain'): void {
+  const file = new Blob([value], { type });
   const url = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = url;

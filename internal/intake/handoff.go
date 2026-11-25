@@ -9,12 +9,13 @@ import (
 )
 
 type rule struct {
-	State   string              `json:"state"`
-	Office  string              `json:"office"`
-	Retired bool                `json:"retired,omitempty"`
-	When    map[string][]string `json:"when"`
-	Concern map[string][]string `json:"concern"`
-	Output  outputContract      `json:"output"`
+	State     string              `json:"state"`
+	Office    string              `json:"office"`
+	Retired   bool                `json:"retired,omitempty"`
+	When      map[string][]string `json:"when"`
+	Concern   map[string][]string `json:"concern"`
+	Directory bool                `json:"directory,omitempty"`
+	Output    outputContract      `json:"output"`
 	Handoff
 }
 
@@ -59,6 +60,12 @@ type OutputPreview struct {
 	Values      Values           `json:"values"`
 	Missing     []string         `json:"missing"`
 	Documents   []string         `json:"documents,omitempty"`
+	Draft       *MessageDraft    `json:"draft,omitempty"`
+}
+
+type MessageDraft struct {
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
 }
 
 type OutputSchema struct {
@@ -92,8 +99,9 @@ type FieldValue struct {
 }
 
 type Details struct {
-	Record  Record  `json:"record"`
-	Handoff Handoff `json:"handoff"`
+	Record  Record         `json:"record"`
+	Handoff Handoff        `json:"handoff"`
+	Routing RoutingOutcome `json:"routing"`
 }
 
 type Summary struct {
@@ -105,6 +113,7 @@ type Summary struct {
 	ReviewFlags     []string  `json:"reviewFlags"`
 	Topic           string    `json:"topic,omitempty"`
 	County          string    `json:"county,omitempty"`
+	Destination     string    `json:"destination"`
 }
 
 func (s Schema) Summary(record Record) Summary {
@@ -112,6 +121,7 @@ func (s Schema) Summary(record Record) Summary {
 	summary := Summary{
 		ID: record.ID, CreatedAt: record.CreatedAt, StateCode: state.Code, RequestedOffice: record.RequestedOffice,
 		Status: record.Status, ReviewFlags: record.ReviewFlags, County: record.Concern["county"],
+		Destination: s.routingOutcome(record, state, s.handoffRule(record, state.Code)).Destination,
 	}
 	for _, field := range state.OfficeFields[officeKey(record.RequestedOffice)] {
 		if field.Key == "topic" {
@@ -158,8 +168,9 @@ func (s Schema) handoffRule(record Record, stateCode string) *rule {
 func (s Schema) Details(record Record) Details {
 	state, _ := s.state(record.StateCode)
 	route := s.handoffRule(record, state.Code)
+	outcome := s.routingOutcome(record, state, route)
 	if route == nil {
-		return Details{Record: record, Handoff: Handoff{
+		return Details{Record: record, Routing: outcome, Handoff: Handoff{
 			Title: "Staff review", Channel: "Internal",
 			Instruction: "Confirm the receiving workflow and the applicable output schema.",
 			Fields:      []FieldValue{},
@@ -217,7 +228,27 @@ func (s Schema) Details(record Record) Details {
 		}
 	}
 	handoff.Output = output
-	return Details{Record: record, Handoff: handoff}
+	if output.Format == "staff_summary" && len(output.Missing) == 0 && len(handoff.Fields) > 0 {
+		var body strings.Builder
+		body.WriteString("Hello,\n\nI’m requesting assistance with the following concern.\n")
+		for _, field := range handoff.Fields {
+			fmt.Fprintf(&body, "\n%s\n%s\n", field.Label, field.Value)
+		}
+		output.Draft = &MessageDraft{Subject: handoff.Title, Body: body.String()}
+	}
+	if output.Format == "public_referral" && outcome.Kind == destinationOffice {
+		label := findHint(state.hintsForVersion(record.SchemaVersion), record.RoutingHint).Label
+		if question := state.clarifications[record.RoutingHint]; question.Topic != "" && record.RoutingAnswer != "" {
+			label = question.TopicLabel
+		}
+		if label != "" {
+			output.Draft = &MessageDraft{
+				Subject: "Request for ombudsman assistance",
+				Body:    fmt.Sprintf("Hello,\n\nI’m looking for help with a concern in %s.\n\nTopic\n%s\n\nCould you confirm whether your office handles this type of concern and tell me how to submit the details securely?\n\nThank you.\n", state.Name, label),
+			}
+		}
+	}
+	return Details{Record: record, Handoff: handoff, Routing: outcome}
 }
 
 func (s Schema) sourceField(state stateConfig, office, section, key string) Field {
@@ -255,8 +286,7 @@ func (s Schema) validateHandoffs() error {
 			return fmt.Errorf("invalid state or office for output contract %q", ref.ID)
 		}
 		if route.SourceURL != "" {
-			link, err := url.Parse(route.SourceURL)
-			if err != nil || link.Scheme != "https" || link.Host == "" || link.User != nil || strings.ContainsAny(route.SourceURL, "{}") {
+			if !validPublicURL(route.SourceURL) {
 				return fmt.Errorf("invalid source link for output contract %q", ref.ID)
 			}
 		} else if route.Output.Format == "public_referral" {
@@ -282,4 +312,9 @@ func (s Schema) validateHandoffs() error {
 		}
 	}
 	return nil
+}
+
+func validPublicURL(value string) bool {
+	link, err := url.Parse(value)
+	return err == nil && link.Scheme == "https" && link.Hostname() != "" && link.User == nil && !strings.ContainsAny(value, "{}\r\n")
 }

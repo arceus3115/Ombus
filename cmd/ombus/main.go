@@ -18,13 +18,20 @@ func main() {
 	port := flag.Int("port", 8765, "local HTTP port")
 	data := flag.String("data", "data/cases", "directory for case records")
 	assets := flag.String("assets", "web/dist", "built frontend directory")
+	coverage := flag.String("coverage", "", "print routing coverage as json or markdown")
 	flag.Parse()
-	if _, err := os.Stat(filepath.Join(*assets, "index.html")); err != nil {
-		log.Fatal("Build the TypeScript frontend with npm run build first.")
-	}
 	schema, err := intake.Load()
 	if err != nil {
 		log.Fatal(err)
+	}
+	if *coverage != "" {
+		if err := writeCoverage(os.Stdout, *coverage, schema.Coverage()); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	if _, err := os.Stat(filepath.Join(*assets, "index.html")); err != nil {
+		log.Fatal("Build the TypeScript frontend with npm run build first.")
 	}
 	cases, err := store.Open(*data)
 	if err != nil {

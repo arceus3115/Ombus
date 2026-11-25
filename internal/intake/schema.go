@@ -58,6 +58,8 @@ type Schema struct {
 	states        map[string]stateConfig
 	handoffs      []rule
 	publicVersion int
+	sharedTopics  []Option
+	resources     map[string]resourceDirectory
 }
 
 type stateConfig struct {
@@ -66,6 +68,7 @@ type stateConfig struct {
 	TimeZone            string             `json:"timeZone"`
 	CountySet           string             `json:"countySet"`
 	LocationFields      []Field            `json:"locationFields"`
+	Offices             []Option           `json:"offices"`
 	OfficeFields        map[string][]Field `json:"officeFields"`
 	RoutingHints        []Hint             `json:"routingHints"`
 	legacyHints         []Hint
@@ -140,6 +143,9 @@ func Load() (Schema, error) {
 	if err := schema.validateHandoffs(); err != nil {
 		return Schema{}, err
 	}
+	if err := schema.loadResources(); err != nil {
+		return Schema{}, err
+	}
 	return schema, nil
 }
 
@@ -167,13 +173,7 @@ func (s Schema) Prepare(input Input, now time.Time) (Record, error) {
 	if !ok || (public && input.StateCode == "") || (!public && state.legacyHints == nil) {
 		return Record{}, fmt.Errorf("choose a supported state")
 	}
-	hints := state.legacyHints
-	if public {
-		hints = state.RoutingHints
-	}
-	if input.SchemaVersion == firstPublicVersion {
-		hints = state.previousPublicHints
-	}
+	hints := state.hintsForVersion(input.SchemaVersion)
 	hint := findHint(hints, input.RoutingHint)
 	if input.RoutingHint != "" && (hint.Value == "" || hint.FollowUpOnly) {
 		return Record{}, fmt.Errorf("choose a valid topic")

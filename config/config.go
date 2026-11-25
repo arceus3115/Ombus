@@ -14,5 +14,8 @@ var States []byte
 //go:embed routing.json
 var Routing []byte
 
+//go:embed resources.json
+var Resources []byte
+
 //go:embed handoffs.json
 var Handoffs []byte

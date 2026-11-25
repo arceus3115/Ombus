@@ -232,6 +232,113 @@ func TestPreviousPublicIntakeKeepsItsRoute(t *testing.T) {
 	}
 }
 
+func TestCoverageMatrixHasAnOperableRouteForEverySharedTopic(t *testing.T) {
+	handler, _ := workspace(t)
+	response := call(t, handler, http.MethodGet, "/api/routing/coverage", nil)
+	expect(t, response, http.StatusOK)
+	var report intake.CoverageReport
+	if err := json.Unmarshal(response.Body.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Jurisdictions) != 53 || len(report.Topics) != 8 {
+		t.Fatalf("coverage reports %d jurisdictions and %d shared topics", len(report.Jurisdictions), len(report.Topics))
+	}
+	for _, state := range report.Jurisdictions {
+		for _, topic := range report.Topics {
+			var entry intake.TopicCoverage
+			for _, coverage := range state.Topics {
+				if coverage.Topic.Value == topic.Value {
+					entry = coverage
+					break
+				}
+			}
+			options := entry.Options
+			if entry.Routing != nil {
+				options = []intake.CoverageOption{{Routing: *entry.Routing}}
+			}
+			if len(options) == 0 {
+				t.Fatalf("%s/%s has no route", state.Code, topic.Value)
+			}
+			for _, option := range options {
+				t.Run(state.Code+"/"+topic.Value+"/"+option.Option.Value, func(t *testing.T) {
+					input := sampleIntake(nil)
+					input.SchemaVersion, input.StateCode, input.RoutingHint = report.SchemaVersion, state.Code, topic.Value
+					input.RoutingAnswer = option.Option.Value
+					input.OfficeDetails = intake.Values{"setting": "nursing", "ageBand": "60_plus", "noticeType": "unknown"}
+					response := call(t, handler, http.MethodPost, "/api/routing/preview", input)
+					expect(t, response, http.StatusOK)
+					var result intake.RoutingPreview
+					if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+						t.Fatal(err)
+					}
+					if result.Routing.Kind != option.Routing.Kind || result.Routing.Destination != option.Routing.Destination {
+						t.Fatalf("coverage and intake differ: %+v vs %+v", option.Routing, result.Routing)
+					}
+					if option.Option.Value != "unsure" && result.Routing.Contact == nil {
+						t.Fatal("expected an actionable contact or resource")
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestRoutingPreviewAndReceiptUseTheSameVerifiedContact(t *testing.T) {
+	handler, _ := workspace(t)
+	input := sampleIntake(nil)
+	input.SchemaVersion, input.StateCode, input.RoutingHint = 3, "ID", "access_or_billing"
+	input.Contact = intake.Values{"contactMethod": "email", "email": "sample@example.com"}
+	preview := call(t, handler, http.MethodPost, "/api/routing/preview", input)
+	expect(t, preview, http.StatusOK)
+	if strings.Contains(preview.Body.String(), "Fictional summary") || strings.Contains(preview.Body.String(), "sample@example.com") || preview.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("unexpected preview disclosure or cache headers: %s", preview.Body)
+	}
+	expect(t, call(t, handler, http.MethodGet, "/api/cases/"+testID, nil), http.StatusNotFound)
+	var result intake.RoutingPreview
+	if err := json.Unmarshal(preview.Body.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Routing.Kind != "staff_review_with_resource" || result.Routing.Contact == nil || !strings.HasSuffix(result.Routing.Contact.URL, "#ID") {
+		t.Fatalf("wrong Idaho resource: %+v", result.Routing)
+	}
+	saved := call(t, handler, http.MethodPost, "/api/cases", input)
+	expect(t, saved, http.StatusCreated)
+	var details intake.Details
+	if err := json.Unmarshal(saved.Body.Bytes(), &details); err != nil {
+		t.Fatal(err)
+	}
+	want, _ := json.Marshal(result.Routing)
+	got, _ := json.Marshal(details.Routing)
+	if !bytes.Equal(got, want) || details.Record.RequestedOffice != nil || details.Handoff.Output.Draft != nil {
+		t.Fatalf("receipt changed the routing outcome: %s, want %s", got, want)
+	}
+}
+
+func TestHandoffDraftOnlyUsesPermittedInformation(t *testing.T) {
+	for _, tc := range []struct{ state, topic, want string }{
+		{"MN", "resident_rights", "Sample provider"},
+		{"OR", "access_or_billing", "Oregon Health Plan"},
+	} {
+		t.Run(tc.state, func(t *testing.T) {
+			handler, _ := workspace(t)
+			input := sampleIntake(nil)
+			input.SchemaVersion, input.StateCode, input.RoutingHint = 3, tc.state, tc.topic
+			input.OfficeDetails = intake.Values{"provider": "Sample provider"}
+			input.Contact = intake.Values{"contactMethod": "email", "email": "sample@example.com"}
+			response := call(t, handler, http.MethodPost, "/api/cases", input)
+			expect(t, response, http.StatusCreated)
+			var details intake.Details
+			if err := json.Unmarshal(response.Body.Bytes(), &details); err != nil {
+				t.Fatal(err)
+			}
+			draft := details.Handoff.Output.Draft
+			if draft == nil || !strings.Contains(draft.Body, tc.want) || strings.Contains(draft.Body, "Fictional summary") || strings.Contains(draft.Body, "sample@example.com") {
+				t.Fatalf("unexpected handoff draft: %+v", draft)
+			}
+		})
+	}
+}
+
 func TestSaveRetryAndReadFromReopenedStore(t *testing.T) {
 	handler, reopen := workspace(t)
 	office := "ooltc"

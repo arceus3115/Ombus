@@ -37,6 +37,7 @@
           <form id="intake-form" class="card" method="post" autocomplete="off" novalidate>
             <div class="card-body">
               <div id="error-summary" class="error-summary" role="alert"></div>
+              <p id="routing-progress" role="status"></p>
 
               <section data-step="0" aria-labelledby="concern-heading">
                 <h2 id="concern-heading" tabindex="-1">About the concern</h2>
@@ -99,6 +100,7 @@
                 <h2 id="complete-heading" tabindex="-1">Received by Ombus</h2>
                 <p id="completion-message" class="section-intro"></p>
                 <p id="completed-destination"></p>
+                <p id="completed-resource" hidden></p>
                 <p id="record-reference" class="record-reference"></p>
               </section>
             </div>

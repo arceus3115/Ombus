@@ -1,5 +1,6 @@
 import {
   downloadCase,
+  downloadFile,
   downloadJSON,
   getCase,
   listCases,
@@ -12,7 +13,6 @@ import { reviewGroup } from '../../components/review.ts';
 import {
   concernQuestions,
   contactFields,
-  destinationName,
   resolveRoute,
   routingQuestion,
   stateProfile,
@@ -57,7 +57,7 @@ function caseList(cases: CaseSummary[]) {
     const link = headingLink('', `/cases?id=${encodeURIComponent(record.id)}`, 'case-item');
     const information = node('div');
     information.append(
-      node('strong', '', destinationName(record, record.reviewFlags)),
+      node('strong', '', record.destination),
       node(
         'p',
         'case-description',
@@ -79,7 +79,7 @@ function caseList(cases: CaseSummary[]) {
   return panel;
 }
 
-function caseDetail({ record, handoff }: CaseDetails) {
+function caseDetail({ record, handoff, routing }: CaseDetails) {
   const state = stateProfile(record.stateCode);
   const topic = suggestRoute(record.routingHint, state.code);
   const question = routingQuestion(record.routingHint, state.code);
@@ -107,12 +107,7 @@ function caseDetail({ record, handoff }: CaseDetails) {
         ? [['Topic', answer && question ? question.topicLabel : topic.label] as [string, string]]
         : []),
       ...(answer && question ? [[question.label, answer.label] as [string, string]] : []),
-      [
-        'Destination',
-        handoff.output?.format === 'public_referral'
-          ? handoff.title
-          : destinationName(record, record.reviewFlags),
-      ],
+      ['Destination', routing.destination],
       ...reviewEntries(
         state.officeFields[record.requestedOffice ?? 'triage'] ?? [],
         record.officeDetails,
@@ -163,10 +158,29 @@ function caseDetail({ record, handoff }: CaseDetails) {
       delivery.body.append(button);
     }
   }
-  if (handoff.sourceUrl) {
+  const draft = handoff.output?.draft;
+  if (draft) {
+    const label =
+      handoff.output?.format === 'public_referral'
+        ? 'Download contact inquiry'
+        : 'Download message draft';
+    const button = node('button', 'button secondary', label);
+    button.type = 'button';
+    button.addEventListener('click', () =>
+      downloadFile(`ombus-draft-${record.id}.txt`, `${draft.subject}\n\n${draft.body}`),
+    );
+    delivery.body.append(button);
+  }
+  if (routing.contact) {
+    if (routing.kind === 'staff_review_with_resource') {
+      delivery.body.append(
+        node('h3', '', routing.contact.name),
+        node('p', 'section-intro', routing.message),
+      );
+    }
     const link = headingLink(
-      'Find contact instructions (new tab)',
-      handoff.sourceUrl,
+      `${routing.contact.linkLabel} (new tab)`,
+      routing.contact.url,
       'button secondary',
     );
     link.target = '_blank';
@@ -201,7 +215,7 @@ export async function mountCases(): Promise<void> {
       surface.replaceChildren(
         headingLink('← All cases', '/cases', 'case-back'),
         title(
-          destinationName(details.record, details.record.reviewFlags),
+          details.routing.destination,
           `${stateProfile(details.record.stateCode).name} · Pending staff review`,
         ),
         caseDetail(details),

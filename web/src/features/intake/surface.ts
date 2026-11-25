@@ -8,14 +8,19 @@ import {
 } from '../../components/fields.ts';
 import { reviewGroup } from '../../components/review.ts';
 import { displayFlags } from '../../components/status.ts';
-import { downloadCase, saveCase, type CaseRecord } from '../../api.ts';
+import {
+  downloadCase,
+  previewRouting,
+  saveCase,
+  type CaseDetails,
+  type CaseRecord,
+  type RoutingPreview,
+} from '../../api.ts';
 import {
   concernQuestions,
   contactFields,
-  destinationName,
   prepareIntake,
   readFields,
-  reviewFlags,
   resolveRoute,
   routingQuestion,
   routingTopics,
@@ -31,6 +36,7 @@ export function mountIntake(): void {
   const panels = [...form.querySelectorAll<HTMLElement>('[data-step]')];
   const steps = [...byId('steps').children];
   const summary = byId('error-summary');
+  const progress = byId('routing-progress');
   const continueButton = byId<HTMLButtonElement>('continue');
   const stateField: Field = {
     key: 'stateCode',
@@ -96,6 +102,8 @@ export function mountIntake(): void {
 
   function updateVisibility() {
     const hint = resolveRoute(draft.routingHint, draft.stateCode, draft.routingAnswer);
+    for (const button of byId('intake-review').querySelectorAll('button'))
+      button.disabled = continueButton.disabled;
     const groups = [
       [stateGroup, 0],
       [concernGroup, 0],
@@ -113,7 +121,8 @@ export function mountIntake(): void {
           visible.includes(row.field) &&
           !(group === officeGroup && row.field.key === 'topic' && hint?.topic);
         row.element.hidden = !show;
-        for (const control of row.controls) control.disabled = !show || step !== groupStep;
+        for (const control of row.controls)
+          control.disabled = !show || step !== groupStep || continueButton.disabled;
         if (!show) setError(row, '');
       }
     }
@@ -150,6 +159,13 @@ export function mountIntake(): void {
     return false;
   }
 
+  function renderContinueButton() {
+    continueButton.replaceChildren(step === 3 ? 'Submit to Ombus' : 'Continue');
+    const arrow = node('span', '', step === 3 ? '✓' : '→');
+    arrow.setAttribute('aria-hidden', 'true');
+    continueButton.append(arrow);
+  }
+
   function moveTo(nextStep: number, focus = true) {
     step = nextStep;
     panels.forEach((panel, index) => {
@@ -168,12 +184,8 @@ export function mountIntake(): void {
     byId('workflow-actions').hidden = complete;
     byId('intake-complete').hidden = !complete;
     byId('complete-actions').hidden = !complete;
-    continueButton.replaceChildren(step === 3 ? 'Submit to Ombus' : 'Continue');
-    const arrow = node('span', '', step === 3 ? '✓' : '→');
-    arrow.setAttribute('aria-hidden', 'true');
-    continueButton.append(arrow);
+    renderContinueButton();
     updateVisibility();
-    if (step === 3) renderReview();
     if (focus) {
       (panels[step]?.querySelector('h2') ?? byId('complete-heading')).focus({
         preventScroll: true,
@@ -182,10 +194,8 @@ export function mountIntake(): void {
     }
   }
 
-  function renderReview() {
+  function renderReview({ routing, reviewFlags: flags }: RoutingPreview) {
     const review = byId('intake-review');
-    const input = prepareIntake(draft, requestId);
-    const flags = reviewFlags(input);
     const hint = resolveRoute(draft.routingHint, draft.stateCode, draft.routingAnswer);
     review.replaceChildren(
       reviewGroup(
@@ -206,7 +216,11 @@ export function mountIntake(): void {
         [
           ...reviewEntries(routingHintGroup.fields, routingHintGroup.values),
           ...reviewEntries(routingQuestionGroup.fields, routingQuestionGroup.values),
-          ['Destination', destinationName(input, flags)],
+          ['Destination', routing.destination],
+          ['Next step', routing.message],
+          ...(routing.kind === 'staff_review_with_resource' && routing.contact
+            ? [['Public resource', routing.contact.name] as [string, string]]
+            : []),
           ...reviewEntries(
             officeGroup.fields,
             officeGroup.values,
@@ -217,6 +231,28 @@ export function mountIntake(): void {
       ),
     );
     if (flags.length) review.append(displayFlags(flags));
+  }
+
+  function showReceipt(saved: CaseDetails) {
+    record = saved.record;
+    const { contact, destination, kind, message } = saved.routing;
+    byId('record-reference').textContent = `Case ID ${record.id}`;
+    byId('completed-destination').textContent = destination;
+    byId('completion-message').textContent = `Ombus saved your intake. ${message}`;
+    const resource = byId('completed-resource');
+    resource.textContent = kind === 'staff_review_with_resource' ? (contact?.name ?? '') : '';
+    resource.hidden = !resource.textContent;
+    const officeLink = byId<HTMLAnchorElement>('contact-office');
+    officeLink.hidden = !contact;
+    if (contact) {
+      officeLink.href = contact.url;
+      officeLink.textContent = `${contact.linkLabel} (new tab)`;
+    }
+    const openCase = byId<HTMLAnchorElement>('open-case');
+    openCase.href = `/cases?id=${record.id}`;
+    openCase.classList.toggle('primary', !contact);
+    openCase.classList.toggle('secondary', Boolean(contact));
+    moveTo(4);
   }
 
   function buildStateQuestions() {
@@ -287,42 +323,31 @@ export function mountIntake(): void {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (step === 3 && !continueButton.disabled) {
-      continueButton.disabled = true;
-      continueButton.textContent = 'Saving…';
-      summary.textContent = '';
-      try {
-        const saved = await saveCase(prepareIntake(draft, requestId));
-        record = saved.record;
-        byId('record-reference').textContent = `Case ID ${record.id}`;
-        byId('completed-destination').textContent =
-          saved.handoff.output?.format === 'public_referral'
-            ? saved.handoff.title
-            : destinationName(record, record.reviewFlags);
-        const officeLink = byId<HTMLAnchorElement>('contact-office');
-        if (saved.handoff.sourceUrl) {
-          officeLink.href = saved.handoff.sourceUrl;
-          officeLink.hidden = false;
-          byId('completion-message').textContent =
-            'Ombus saved your intake for staff review. To reach the office directly, use its published contact instructions.';
-        } else {
-          byId('completion-message').textContent =
-            'Ombus saved your intake so staff can find the right office.';
-        }
-        const openCase = byId<HTMLAnchorElement>('open-case');
-        openCase.href = `/cases?id=${record.id}`;
-        openCase.classList.toggle('primary', !saved.handoff.sourceUrl);
-        openCase.classList.toggle('secondary', Boolean(saved.handoff.sourceUrl));
-        moveTo(4);
-      } catch (error) {
-        continueButton.textContent = 'Submit to Ombus';
-        summary.textContent =
-          error instanceof Error ? error.message : 'Ombus could not save this intake.';
-      } finally {
-        continueButton.disabled = false;
-      }
-    } else if (step < 3 && validateStep()) {
+    if (continueButton.disabled || step > 3 || (step < 3 && !validateStep())) return;
+    if (step < 2) {
       moveTo(step + 1);
+      return;
+    }
+    const saving = step === 3;
+    continueButton.disabled = true;
+    progress.textContent = saving ? 'Saving intake…' : 'Checking the destination…';
+    summary.textContent = '';
+    updateVisibility();
+    try {
+      const input = prepareIntake(draft, requestId);
+      if (saving) {
+        showReceipt(await saveCase(input));
+      } else {
+        renderReview(await previewRouting(input));
+        moveTo(3);
+      }
+    } catch (error) {
+      summary.textContent =
+        error instanceof Error ? error.message : 'Ombus could not complete this step.';
+    } finally {
+      progress.textContent = '';
+      continueButton.disabled = false;
+      updateVisibility();
     }
   });
 

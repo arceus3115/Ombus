@@ -3,9 +3,7 @@ import test from 'node:test';
 import { searchCounties } from './counties.ts';
 import {
   concernQuestions,
-  destinationName,
   minnesotaCounties,
-  reviewFlags,
   prepareIntake,
   readFields,
   resolveRoute,
@@ -76,7 +74,6 @@ test('topic selection sets the office and the branch of office questions', () =>
     topic: 'notice',
     noticeType: 'nursing_discharge_transfer',
   });
-  assert.deepEqual(reviewFlags(record), ['facility_notice_review']);
 });
 
 test('changing from phone to email excludes the number and voicemail preference', () => {
@@ -97,7 +94,6 @@ test('changing from phone to email excludes the number and voicemail preference'
   );
   assert.deepEqual(record.contact, { contactMethod: 'email', email: 'sample@example.com' });
   assert.equal(record.requestedOffice, null);
-  assert.deepEqual(reviewFlags(record), ['routing_review']);
 });
 
 test('changing from a reportable incident hides its fields and nested follow-ups', () => {
@@ -162,7 +158,6 @@ test('managed care appeal export retains the dates for the current stage and onl
     urgentService: 'yes',
   });
   assert.equal(record.receipt.timeZone, 'America/Chicago');
-  assert.deepEqual(reviewFlags(record), ['time_sensitive', 'appeal_review']);
 });
 
 test('the same topic resolves to a different office in each state', () => {
@@ -171,7 +166,7 @@ test('the same topic resolves to a different office in each state', () => {
   assert.equal(suggestRoute('incident', 'WI'), undefined);
 });
 
-test('a Wisconsin intake uses Wisconsin location fields and flags an unsure age for review', () => {
+test('a Wisconsin intake keeps Wisconsin location and eligibility answers', () => {
   const input = prepareIntake(
     {
       stateCode: 'WI',
@@ -184,7 +179,7 @@ test('a Wisconsin intake uses Wisconsin location fields and flags an unsure age 
   );
   assert.equal(input.stateCode, 'WI');
   assert.deepEqual(input.concern, { serviceLocation: 'Milwaukee County' });
-  assert.deepEqual(reviewFlags(input), ['routing_review']);
+  assert.equal(input.officeDetails.ageBand, 'unknown');
 });
 
 test('every jurisdiction has long-term care routing and an unsure option', () => {
@@ -196,23 +191,18 @@ test('every jurisdiction has long-term care routing and an unsure option', () =>
   }
 });
 
-test('the destination reflects a verified county or staff review depending on the care setting', () => {
-  const draft = {
-    stateCode: 'CA',
-    routingHint: 'resident_rights',
-    concern: { county: '06037' },
-    contact: {},
-    officeAnswers: { resident_rights: { setting: 'nursing' } },
-  };
-  const intake = prepareIntake(draft, id);
-  assert.deepEqual(intake.concern, { county: 'Los Angeles', countyCode: '06037' });
-  assert.equal(
-    destinationName(intake, reviewFlags(intake)),
-    'Los Angeles County Long-Term Care Ombudsman',
+test('a California intake exports the selected county and its canonical code', () => {
+  const input = prepareIntake(
+    {
+      stateCode: 'CA',
+      routingHint: 'resident_rights',
+      concern: { county: '06037' },
+      contact: {},
+      officeAnswers: { resident_rights: { setting: 'nursing' } },
+    },
+    id,
   );
-  draft.officeAnswers.resident_rights.setting = 'unknown';
-  const uncertain = prepareIntake(draft, id);
-  assert.equal(destinationName(uncertain, reviewFlags(uncertain)), 'Staff routing review');
+  assert.deepEqual(input.concern, { county: 'Los Angeles', countyCode: '06037' });
 });
 
 test('a shared topic shows one clarifier when Minnesota child welfare offices overlap', () => {
@@ -247,9 +237,7 @@ test('Texas routes to the program that covers the selected disability services',
   assert.equal(input.routingHint, 'client_services');
   assert.equal(input.routingAnswer, 'supported_living');
   assert.deepEqual(input.officeDetails, {});
-  assert.deepEqual(reviewFlags(input), []);
   draft.routingAnswer = 'unsure';
   const uncertain = prepareIntake(draft, id);
-  assert.deepEqual(reviewFlags(uncertain), ['routing_review']);
   assert.deepEqual(uncertain.officeDetails, { routingNotes: 'Sample note for staff review' });
 });

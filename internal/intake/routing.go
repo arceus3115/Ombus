@@ -56,6 +56,7 @@ type contactPage struct {
 	SourceURL   string `json:"sourceUrl"`
 	Channel     string `json:"channel"`
 	Instruction string `json:"instruction"`
+	Directory   bool   `json:"directory"`
 }
 
 type countyDirectory struct {
@@ -87,6 +88,7 @@ func (s *Schema) loadRouting(counties map[string][]Option) error {
 		return fmt.Errorf("invalid public intake version %d", catalog.SchemaVersion)
 	}
 	s.publicVersion = catalog.SchemaVersion
+	s.sharedTopics = catalog.Topics
 	profiles := s.states
 	s.states = make(map[string]stateConfig, len(catalog.Jurisdictions))
 	for _, region := range catalog.Jurisdictions {
@@ -112,6 +114,7 @@ func (s *Schema) loadRouting(counties map[string][]Option) error {
 				return fmt.Errorf("invalid or duplicate referral office %s/%s", state.Code, entry.Office)
 			}
 			state.OfficeFields[entry.Office] = entry.Fields
+			state.Offices = append(state.Offices, Option{Value: entry.Office, Label: entry.Label})
 			for _, topic := range entry.Topics {
 				topic.Office = entry.Office
 				topic.sinceVersion = entry.SinceVersion
@@ -220,7 +223,9 @@ func (s *Schema) addDirectory(state *stateConfig, dir directory, countyField Fie
 		page = dir.Contact
 	}
 	page.SourceURL = replacements.Replace(page.SourceURL)
-	s.handoffs = append(s.handoffs, referralHandoff(state.Code, dir.Office, replacements.Replace(dir.Label), dir.Version, page))
+	label := replacements.Replace(dir.Label)
+	state.Offices = append(state.Offices, Option{Value: dir.Office, Label: label})
+	s.handoffs = append(s.handoffs, referralHandoff(state.Code, dir.Office, label, dir.Version, page))
 	return nil
 }
 
@@ -283,6 +288,17 @@ func findHint(hints []Hint, value string) Hint {
 	return Hint{}
 }
 
+func (state stateConfig) hintsForVersion(version int) []Hint {
+	switch {
+	case version < firstPublicVersion:
+		return state.legacyHints
+	case version == firstPublicVersion:
+		return state.previousPublicHints
+	default:
+		return state.RoutingHints
+	}
+}
+
 // Shared topics supply the default wording and route to staff if a state has no match.
 func (state stateConfig) completeTopics(topics []Option, version int) ([]Hint, error) {
 	byValue := make(map[string]Hint, len(state.RoutingHints))
@@ -333,7 +349,8 @@ func (state stateConfig) completeTopics(topics []Option, version int) ([]Hint, e
 func referralHandoff(state, office, label string, version int, page contactPage) rule {
 	return rule{
 		State: state, Office: office,
-		Handoff: Handoff{Title: label, Channel: page.Channel, Instruction: page.Instruction, SourceURL: page.SourceURL},
+		Directory: page.Directory,
+		Handoff:   Handoff{Title: label, Channel: page.Channel, Instruction: page.Instruction, SourceURL: page.SourceURL},
 		Output: outputContract{
 			ContractRef: ContractRef{ID: strings.ToLower(state) + "." + office + ".referral", Version: version},
 			Format:      "public_referral",
